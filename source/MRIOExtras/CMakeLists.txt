@@ -107,7 +107,7 @@ IF(NOT MRIOEXTRAS_NO_PNG)
 ENDIF()
 
 IF(NOT MRIOEXTRAS_NO_STEP)
-  find_package(OpenCASCADE REQUIRED
+  find_package(OpenCASCADE REQUIRED GLOBAL
     COMPONENTS
     # NOTE: the component order is significant
     FoundationClasses
