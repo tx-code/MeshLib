@@ -41,6 +41,7 @@ option(MESHLIB_EXPERIMENTAL_BUILD_C_BINDING "(experimental) Build C binding libr
 option(MESHLIB_BUILD_SYMBOLMESH "Build symbol-to-mesh library" ON)
 option(MESHLIB_BUILD_VOXELS "Build voxels library" ON)
 option(MESHLIB_BUILD_EXTRA_IO_FORMATS "Build extra IO format support library" ON)
+option(BUILD_IMOS "Build IMOS library" ON)
 
 option(MESHLIB_BUILD_MRCUDA "Build MRCuda library" ON)
 option(MESHLIB_EXPERIMENTAL_HIP "(experimental) Use HIP toolkit for MRCuda library" OFF)
@@ -333,6 +334,10 @@ configure_package_config_file(meshlib-config.cmake.in ${CMAKE_CURRENT_BINARY_DIR
   INSTALL_DESTINATION ${MR_CONFIG_DIR}
   PATH_VARS CMAKE_INSTALL_INCLUDEDIR CMAKE_INSTALL_LIBDIR MR_INCLUDE_DIR MR_MAIN_LIB_DIR
 )
+
+if(BUILD_IMOS) # only build IMOS if specified, so MeshLib can still be built stand-alone
+    add_subdirectory("../IMOS" "${CMAKE_BINARY_DIR}/IMOS")
+endif(BUILD_IMOS)
 
 write_basic_package_version_file(${CMAKE_CURRENT_BINARY_DIR}/meshlib-config-version.cmake
   VERSION ${MESHLIB_VERSION}
