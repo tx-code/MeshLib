@@ -258,9 +258,11 @@ IF(MESHLIB_BUILD_MRVIEWER)
 
   add_subdirectory(${PROJECT_SOURCE_DIR}/imgui ./imgui)
   add_subdirectory(${PROJECT_SOURCE_DIR}/MRViewer ./MRViewer)
-  add_subdirectory(${PROJECT_SOURCE_DIR}/MRCommonPlugins ./MRCommonPlugins)
+  IF(NOT BUILD_IMOS)
+    add_subdirectory(${PROJECT_SOURCE_DIR}/MRCommonPlugins ./MRCommonPlugins)
+  ENDIF()
 
-  IF(MESHLIB_BUILD_MESHVIEWER)
+  IF(MESHLIB_BUILD_MESHVIEWER AND NOT BUILD_IMOS)
     add_subdirectory(${PROJECT_SOURCE_DIR}/MRViewerApp ./MRViewerApp)
   ENDIF()
 ENDIF()
