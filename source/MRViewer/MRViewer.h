@@ -27,6 +27,7 @@ struct GLFWwindow;
 namespace MR
 {
 
+class ViewController;
 class ViewerTitle;
 
 class SpaceMouseHandler;
@@ -494,6 +495,8 @@ public:
     // class that updates viewer title
     std::shared_ptr<ViewerTitle> windowTitle;
 
+    unsigned int colorFrameBufferId_{ 0 };
+
     //*********
     // SIGNALS
     //*********
@@ -628,6 +631,8 @@ private:
 
     // special plugin for menu (initialized before splash window starts)
     std::shared_ptr<ImGuiMenu> menuPlugin_;
+
+    std::unique_ptr<ViewController> viewController_; 
 
     std::unique_ptr<TouchpadController> touchpadController_;
     std::unique_ptr<SpaceMouseController> spaceMouseController_;

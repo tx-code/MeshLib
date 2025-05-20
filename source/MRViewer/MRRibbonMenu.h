@@ -32,6 +32,7 @@ struct RibbonMenuUIConfig
     bool drawToolbar{ true }; ///< if false - toolbar will be hidden (ignored if top panel is hidden)
     bool drawViewportTags{ true }; ///< if false - window with viewport label and id will be hidden
     bool drawNotifications{ true }; ///< if false - no notifications are drawn on screen
+    bool drawCustomViewerWindow{ true }; ///< if false - custom viewer window will be hidden
 
     bool operator==( const RibbonMenuUIConfig& ) const = default;
 };
@@ -210,6 +211,8 @@ protected:
     // Draw vertical line at the right border of scene to enable resize of scene list
     // returns size of scene window
     MRVIEWER_API virtual Vector2f drawRibbonSceneResizeLine_();
+    // Draw custom viewer window
+    MRVIEWER_API virtual void drawCustomViewerWindow_();
     // Draw viewport id and projection type for all viewporrts
     MRVIEWER_API virtual void drawRibbonViewportsLabels_();
 

@@ -10,6 +10,7 @@
 #include "MRFileDialog.h"
 #include "MRUITestEngine.h"
 #include "MRViewerSettingsManager.h"
+#include "MRViewController.h"
 #include "MRUIStyle.h"
 #include "MRViewport.h"
 #include "MRViewer.h"
@@ -21,6 +22,7 @@
 #include "MRSceneOperations.h"
 #include "MRToolbar.h"
 #include "MRMesh/MRObjectsAccess.h"
+#include "imgui.h"
 #include <MRMesh/MRString.h>
 #include <MRMesh/MRSystem.h>
 #include <MRMesh/MRStringConvert.h>
@@ -138,6 +140,9 @@ void RibbonMenu::init( MR::Viewer* _viewer )
 
         if ( menuUIConfig_.drawScenePanel )
             drawRibbonSceneList_();
+
+        if( menuUIConfig_.drawCustomViewerWindow )
+            drawCustomViewerWindow_();
 
         if ( menuUIConfig_.drawViewportTags )
             drawRibbonViewportsLabels_();
@@ -1691,6 +1696,44 @@ void RibbonMenu::drawRibbonSceneList_()
     }
     if ( firstTime )
         firstTime = false;
+}
+
+void RibbonMenu::drawCustomViewerWindow_()
+{
+    const auto scaling = menu_scaling();
+    // Define next window position + size
+    auto& viewerRef = Viewer::instanceRef();
+
+    // Occupy the remaining space
+    float topShift = 0.0f;
+    const bool hasTopPanel = menuUIConfig_.topLayout != RibbonTopPanelLayoutMode::None;
+    if (hasTopPanel)
+        topShift = float(currentTopPanelHeight_);
+
+    // -1 to avoid overlap with the right border of the scene
+    ImGui::SetNextWindowPos(ImVec2(sceneSize_.x - 1, topShift * scaling - 1),
+                          ImGuiCond_Always);
+    const auto& viewportBounds = viewerRef.getViewportsBounds();
+    const auto renderWindowWidth = viewportBounds.max.x - viewportBounds.min.x;
+    const auto renderWindowHeight = viewportBounds.max.y - viewportBounds.min.y;
+    ImGui::SetNextWindowSize(ImVec2(renderWindowWidth, renderWindowHeight), ImGuiCond_Always);
+    // Let the image fill the whole window
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+
+    ImGui::Begin(
+      "IMOS Viewer", nullptr,ImGuiWindowFlags_NoDecoration | 
+      ImGuiWindowFlags_NoMove | 
+      ImGuiWindowFlags_NoBringToFrontOnFocus |
+      ImGuiWindowFlags_NoScrollWithMouse |
+      ImGuiWindowFlags_NoBackground
+    );
+    if(viewerRef.colorFrameBufferId_ != 0) {
+      ImGui::Image((ImTextureID)(uintptr_t)viewerRef.colorFrameBufferId_,
+                   ImVec2(renderWindowWidth, renderWindowHeight),
+                   ImVec2(0.f, 1.f), ImVec2(1.f, 0.f));
+    }
+    ImGui::End();
+    ImGui::PopStyleVar();
 }
 
 Vector2f RibbonMenu::drawRibbonSceneResizeLine_()
