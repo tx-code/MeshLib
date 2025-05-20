@@ -1723,15 +1723,25 @@ void RibbonMenu::drawCustomViewerWindow_()
     ImGui::Begin(
       "IMOS Viewer", nullptr,ImGuiWindowFlags_NoDecoration | 
       ImGuiWindowFlags_NoMove | 
+      ImGuiWindowFlags_NoFocusOnAppearing |
       ImGuiWindowFlags_NoBringToFrontOnFocus |
       ImGuiWindowFlags_NoScrollWithMouse |
       ImGuiWindowFlags_NoBackground
     );
     if(viewerRef.colorFrameBufferId != 0) {
+#if 1
       ImGui::Image((ImTextureID)(uintptr_t)viewerRef.colorFrameBufferId,
                    ImVec2(renderWindowWidth, renderWindowHeight),
                    ImVec2(0.f, 1.f), ImVec2(1.f, 0.f));
-      viewerRef.renderWindowHasFocus = ImGui::IsItemHovered();            
+#else
+      ImGui::GetBackgroundDrawList()->AddImage(
+          (ImTextureID)(uintptr_t)viewerRef.colorFrameBufferId,
+          ImGui::GetCursorScreenPos(),
+          ImVec2(ImGui::GetCursorScreenPos().x + renderWindowWidth,
+                 ImGui::GetCursorScreenPos().y + renderWindowHeight),
+          ImVec2(0.f, 1.f), ImVec2(1.f, 0.f));
+#endif
+      viewerRef.renderWindowHasFocus = ImGui::IsWindowHovered();
     }
     ImGui::End();
     ImGui::PopStyleVar();

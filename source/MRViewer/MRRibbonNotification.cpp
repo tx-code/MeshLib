@@ -94,6 +94,7 @@ void RibbonNotifier::drawHistoryButton_( float scaling, const Box2i& limitFrameb
 
     ImGui::SetNextWindowPos( windowPos, ImGuiCond_Always );
     ImGui::SetNextWindowSize( windowSzie, ImGuiCond_Always );
+#if 0
     ImGuiWindowFlags flags =
         ImGuiWindowFlags_AlwaysAutoResize |
         ImGuiWindowFlags_NoResize |
@@ -101,6 +102,14 @@ void RibbonNotifier::drawHistoryButton_( float scaling, const Box2i& limitFrameb
         ImGuiWindowFlags_NoMove |
         ImGuiWindowFlags_NoFocusOnAppearing |
         ImGuiWindowFlags_NoBringToFrontOnFocus;
+#else 
+    // Otherwise, the notification button will be hidden by the viewport window
+    ImGuiWindowFlags flags =
+        ImGuiWindowFlags_AlwaysAutoResize |
+        ImGuiWindowFlags_NoResize |
+        ImGuiWindowFlags_NoTitleBar |
+        ImGuiWindowFlags_NoMove;
+#endif
     std::string name = "##NotificationButton";
     ImGui::PushStyleVar( ImGuiStyleVar_WindowBorderSize, 0.0f );
     ImGui::PushStyleVar( ImGuiStyleVar_WindowRounding, cWindowRounding * scaling );
