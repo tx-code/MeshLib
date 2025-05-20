@@ -1,4 +1,5 @@
 #include "MRViewer.h"
+#include "MRViewController.h"
 #include "MRMesh/MRFinally.h"
 #include "MRViewerEventQueue.h"
 #include "MRSceneTextureGL.h"
@@ -832,6 +833,11 @@ int Viewer::launchInit_( const LaunchParams& params )
             touchpadController_ = std::make_unique<TouchpadController>();
         touchpadController_->connect( this );
         touchpadController_->initialize( window );
+
+        if (!viewController_)
+            viewController_ = std::make_unique<ViewController>();
+        viewController_->connect( this );
+        viewController_->initialize();
     }
 
     CommandLoop::setState( CommandLoop::StartPosition::AfterWindowInit );
@@ -965,6 +971,9 @@ void Viewer::launchShut()
 
     if ( touchpadController_ )
         touchpadController_->reset();
+
+    if ( viewController_ )
+        viewController_->shutdown();
 
     glfwDestroyWindow( window );
     glfwTerminate();

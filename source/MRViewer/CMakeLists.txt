@@ -96,6 +96,57 @@ ELSEIF(WIN32 OR MESHLIB_USE_VCPKG)
   find_package(glad REQUIRED)
   find_package(hidapi REQUIRED)
 
+  set(OpenCASCADE_REQUIRED_LIBRARIES 
+    TKernel;
+    TKMath;
+    TKG2d;
+    TKG3d;
+    TKGeomBase;
+    TKBRep;
+    TKGeomAlgo;
+    TKTopAlgo;
+    TKPrim;
+    TKBO;
+    TKShHealing;
+    TKBool;
+    TKHLR;
+    TKFillet;
+    TKOffset;
+    TKFeat;
+    TKMesh;
+    TKXMesh;
+    TKService;
+    TKV3d;
+    TKOpenGl;
+    TKMeshVS;
+    TKCDF;
+    TKLCAF;
+    TKCAF;
+    TKBinL;
+    TKXmlL;
+    TKBin;
+    TKXml;
+    TKStdL;
+    TKStd;
+    TKTObj;
+    TKBinTObj;
+    TKXmlTObj;
+    TKVCAF;
+    TKDE;
+    TKXSBase;
+    TKDESTEP;
+    TKXCAF;
+    TKDEIGES;
+    TKDESTL;
+    TKDEVRML;
+    TKRWMesh;
+    TKDECascade;
+    TKBinXCAF;
+    TKXmlXCAF;
+    TKDEOBJ;
+    TKDEGLTF;
+    TKDEPLY)
+
   target_link_libraries(${PROJECT_NAME} PRIVATE
     MRMesh
     MRIOExtras
@@ -112,6 +163,8 @@ ELSEIF(WIN32 OR MESHLIB_USE_VCPKG)
     TBB::tbb
     ${CMAKE_DL_LIBS}
     ${MRVIEWER_OPTIONAL_DEPENDENCIES}
+    PUBLIC 
+    ${OpenCASCADE_REQUIRED_LIBRARIES}
   )
   IF(NOT WIN32)
     find_package(clip CONFIG REQUIRED)
