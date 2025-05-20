@@ -1727,10 +1727,11 @@ void RibbonMenu::drawCustomViewerWindow_()
       ImGuiWindowFlags_NoScrollWithMouse |
       ImGuiWindowFlags_NoBackground
     );
-    if(viewerRef.colorFrameBufferId_ != 0) {
-      ImGui::Image((ImTextureID)(uintptr_t)viewerRef.colorFrameBufferId_,
+    if(viewerRef.colorFrameBufferId != 0) {
+      ImGui::Image((ImTextureID)(uintptr_t)viewerRef.colorFrameBufferId,
                    ImVec2(renderWindowWidth, renderWindowHeight),
                    ImVec2(0.f, 1.f), ImVec2(1.f, 0.f));
+      viewerRef.renderWindowHasFocus = ImGui::IsItemHovered();            
     }
     ImGui::End();
     ImGui::PopStyleVar();

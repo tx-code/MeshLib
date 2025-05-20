@@ -495,7 +495,9 @@ public:
     // class that updates viewer title
     std::shared_ptr<ViewerTitle> windowTitle;
 
-    unsigned int colorFrameBufferId_{ 0 };
+    unsigned int colorFrameBufferId{ 0 };
+    // true if the render window has focus (mouse is inside the AIS viewer)
+    bool renderWindowHasFocus{ false };
 
     //*********
     // SIGNALS

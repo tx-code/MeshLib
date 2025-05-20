@@ -5,6 +5,7 @@
 #include "MRViewer.h"
 #include "MRViewer/MRRibbonMenu.h"
 #include "MRViewport.h"
+#include "imgui.h"
 
 // OCCT
 #include <AIS_AnimationCamera.hxx>
@@ -23,6 +24,7 @@
 #include <GeomAbs_Shape.hxx>
 #include <Graphic3d_AspectFillArea3d.hxx>
 #include <Graphic3d_MaterialAspect.hxx>
+#include <Graphic3d_Vec2.hxx>
 #include <OpenGl_Context.hxx>
 #include <OpenGl_FrameBuffer.hxx>
 #include <OpenGl_GraphicDriver.hxx>
@@ -64,7 +66,8 @@
 
 #define LOG_VIEW_CONTROLLER 1
 
-namespace MR {
+//! Anonymous namespace for internal functions
+namespace {
 
 //! Create an opengl driver
 Handle(OpenGl_GraphicDriver)
@@ -82,6 +85,38 @@ Handle(OpenGl_GraphicDriver)
   return aGraphicDriver;
 }
 
+Aspect_VKeyMouse toAspectKeyMouse(MR::MouseButton btn) {
+  switch (btn) {
+  case MR::MouseButton::Left:
+    return Aspect_VKeyMouse_LeftButton;
+  case MR::MouseButton::Right:
+    return Aspect_VKeyMouse_RightButton;
+  case MR::MouseButton::Middle:
+    return Aspect_VKeyMouse_MiddleButton;
+  default:
+    return Aspect_VKeyMouse_NONE;
+  }
+}
+
+Aspect_VKeyFlags toAspectKeyFlags(int modifiers) {
+  Aspect_VKeyFlags aFlags = Aspect_VKeyFlags_NONE;
+  if ((modifiers & GLFW_MOD_SHIFT) != 0) {
+    aFlags |= Aspect_VKeyFlags_SHIFT;
+  }
+  if ((modifiers & GLFW_MOD_CONTROL) != 0) {
+    aFlags |= Aspect_VKeyFlags_CTRL;
+  }
+  if ((modifiers & GLFW_MOD_ALT) != 0) {
+    aFlags |= Aspect_VKeyFlags_ALT;
+  }
+  if ((modifiers & GLFW_MOD_SUPER) != 0) {
+    aFlags |= Aspect_VKeyFlags_META;
+  }
+  return aFlags;
+}
+} // namespace
+
+namespace MR {
 struct ViewController::ViewInternal {
   //! GLFW window
   GLFWwindow *glfwWindow{nullptr};
@@ -212,6 +247,7 @@ void ViewController::addAisObject(const Handle(AIS_InteractiveObject) &
 }
 
 //---------------------------------------------------------
+// Init
 
 void ViewController::initOCCTRenderingSystem() {
   assert(internal_->occtAspectWindow);
@@ -444,7 +480,7 @@ void ViewController::initOffscreenRendering() {
     internal_->offscreenFBO->ColorTexture()->Sampler()->Parameters()->SetFilter(
         Graphic3d_TOTF_BILINEAR);
     internal_->view->View()->SetFBO(internal_->offscreenFBO);
-    getViewerInstance().colorFrameBufferId_ =
+    getViewerInstance().colorFrameBufferId =
         internal_->offscreenFBO->ColorTexture()->TextureId();
   } else {
     spdlog::error("Failed to create offscreen FBO.");
@@ -452,6 +488,7 @@ void ViewController::initOffscreenRendering() {
 }
 
 //---------------------------------------------------------
+// Listeners
 
 void ViewController::postResize_(int w, int h) {
   if (w != 0 && h != 0 && !internal_->view.IsNull()) {
@@ -512,7 +549,8 @@ void ViewController::preDraw_() {
                         (int)(85 * internal_->scaleFactor))));
     internal_->viewCube->Redisplay(true);
 
-    float newResolution = internal_->view->ChangeRenderingParams().Resolution * internal_->scaleFactor;
+    float newResolution = internal_->view->ChangeRenderingParams().Resolution *
+                          internal_->scaleFactor;
     internal_->view->ChangeRenderingParams().Resolution = (int)newResolution;
 
     needRedraw = true;
@@ -525,11 +563,83 @@ void ViewController::preDraw_() {
 
 void ViewController::draw_() {
   if (internal_->view && internal_->context) {
-    FlushViewEvents(internal_->context, internal_->view, false);
+    FlushViewEvents(internal_->context, internal_->view, true);
   }
 }
 
-void ViewController::postDraw_() {}
+void ViewController::postDraw_() {
+  // Let the view animation to update the view
+  if (!ViewAnimation()->IsStopped()) {
+    getViewerInstance().incrementForceRedrawFrames();
+  }
+}
+
+bool ViewController::onMouseDown_(MouseButton btn, int modifiers) {
+  if (!getViewerInstance().renderWindowHasFocus) {
+    return false;
+  }
+
+  if (PressMouseButton(LastMousePosition(), toAspectKeyMouse(btn),
+                       toAspectKeyFlags(modifiers), false)) {
+    internal_->view->InvalidateImmediate();
+  }
+
+  return true;
+}
+
+bool ViewController::onMouseUp_(MouseButton btn, int modifiers) {
+  if (!getViewerInstance().renderWindowHasFocus) {
+    return false;
+  }
+
+  if (ReleaseMouseButton(LastMousePosition(), toAspectKeyMouse(btn),
+                         toAspectKeyFlags(modifiers), false)) {
+    internal_->view->InvalidateImmediate();
+  }
+
+  return true;
+}
+
+bool ViewController::onMouseMove_(int x, int y) {
+  const auto &rect = getViewerInstance().viewport().getViewportRect();
+  const auto &framebufferSize = getViewerInstance().framebufferSize;
+
+  if (!getViewerInstance().renderWindowHasFocus) {
+    // When the render window loses focus, reset the view input,
+    // so that the view is not moved by the mouse
+    ResetViewInput();
+    return false;
+  }
+
+  Graphic3d_Vec2i fixedPos = adjustMousePosition(x, y, framebufferSize, rect);
+  if (UpdateMousePosition(fixedPos, PressedMouseButtons(), LastMouseFlags(),
+                          false)) {
+    internal_->view->InvalidateImmediate();
+  }
+
+  return true;
+}
+
+bool ViewController::onMouseScroll_(float delta) {
+  if (!getViewerInstance().renderWindowHasFocus) {
+    return false;
+  }
+
+  const auto &curMousePos = getViewerInstance().mouseController().getMousePos();
+  const auto &rect = getViewerInstance().viewport().getViewportRect();
+  const auto &framebufferSize = getViewerInstance().framebufferSize;
+
+  Graphic3d_Vec2i aAdjustedPos =
+      adjustMousePosition(curMousePos.x, curMousePos.y, framebufferSize, rect);
+  if (UpdateZoom(
+          Aspect_ScrollDelta(aAdjustedPos, int(delta * myScrollZoomRatio)))) {
+    internal_->view->InvalidateImmediate();
+  }
+  return true;
+}
+
+//---------------------------------------------------------
+// Helper functions
 
 Handle(Prs3d_Drawer) ViewController::getDefaultAISDrawer() {
   // Normal mode drawer
@@ -570,6 +680,26 @@ void ViewController::configureHighlightStyle(const Handle(Prs3d_Drawer) &
 
   theDrawer->SetShadingAspect(shadingAspect);
   theDrawer->SetDisplayMode(AIS_Shaded);
+}
+
+bool ViewController::isMouseInViewport(
+    int thePosX, int thePosY, const Vector2i &framebufferSize,
+    const ViewportRectangle &viewportRect) const {
+  // Need to flip y coordinate
+  if ((thePosX < viewportRect.min.x) || (thePosX > viewportRect.max.x) ||
+      ((framebufferSize.y - thePosY) < viewportRect.min.y) ||
+      ((framebufferSize.y - thePosY) > viewportRect.max.y)) {
+    return false;
+  }
+  return true;
+}
+
+Graphic3d_Vec2i ViewController::adjustMousePosition(
+    int thePosX, int thePosY, const Vector2i &framebufferSize,
+    const ViewportRectangle &viewportRect) const {
+  return Graphic3d_Vec2i(
+      (int)(thePosX - viewportRect.min.x),
+      (int)(thePosY + viewportRect.max.y - framebufferSize.y));
 }
 
 } // namespace MR

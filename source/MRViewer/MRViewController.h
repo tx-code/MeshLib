@@ -20,7 +20,9 @@ namespace MR {
 class MRVIEWER_CLASS ViewController
     : protected AIS_ViewController,
       public MultiListener<PostResizeListener, PreDrawListener, DrawListener,
-                           PostDrawListener> {
+                           PostDrawListener, MouseMoveListener,
+                           MouseDownListener, MouseUpListener,
+                           MouseScrollListener> {
 public:
   MR_DELETE_MOVE(ViewController);
 
@@ -33,9 +35,6 @@ public:
   //! Add an ais object to the ais context.
   MRVIEWER_API void addAisObject(const Handle(AIS_InteractiveObject) &
                                  theAisObject);
-
-  //! Handle device pixel ratio change.
-  MRVIEWER_API void devicePixelRatioChanged(double theRatio);
 
 protected:
   //! Initialize OCCT Rendering System.
@@ -69,6 +68,14 @@ protected:
 
   void postDraw_() override;
 
+  bool onMouseDown_(MouseButton btn, int modifiers) override;
+
+  bool onMouseUp_(MouseButton btn, int modifiers) override;
+
+  bool onMouseMove_(int x, int y) override;
+
+  bool onMouseScroll_(float delta) override;
+
   //! @name Helper functions
 private:
   gp_Pnt screenToViewCoordinates(int theX, int theY) const;
@@ -79,8 +86,14 @@ private:
   //! Get the default AIS drawer for nice shape display (shaded with edges)
   Handle(Prs3d_Drawer) getDefaultAISDrawer();
 
+  bool isMouseInViewport(int thePosX, int thePosY,
+                         const Vector2i &framebufferSize,
+                         const ViewportRectangle &viewportRect) const;
+
   //! Adjust mouse position based on current viewport
-  Graphic3d_Vec2i adjustMousePosition(int thePosX, int thePosY) const;
+  Graphic3d_Vec2i
+  adjustMousePosition(int thePosX, int thePosY, const Vector2i &framebufferSize,
+                      const ViewportRectangle &viewportRect) const;
 
 private:
   struct ViewInternal;
