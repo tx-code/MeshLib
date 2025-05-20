@@ -521,6 +521,10 @@ bool ImGuiMenu::onMouseDown_( Viewer::MouseButton button, int modifier)
 {
     capturedMouse_ = ImGui::GetIO().WantCaptureMouse
         || bool( uiRenderManager_->consumedInteractions & BasicUiRenderTask::InteractionMask::mouseHover );
+    if(viewer->renderWindowHasFocus) {
+        //if the render window has focus, let ViewController to handle the mouse event
+        capturedMouse_ = false;
+    }
 
     ImGui_ImplGlfw_MouseButtonCallback( viewer->window, int( button ), GLFW_PRESS, modifier );
 
@@ -552,6 +556,10 @@ bool ImGuiMenu::onMouseScroll_( float delta_y )
     {
         // allow ImGui to process the scroll exclusively
         ImGui_ImplGlfw_ScrollCallback( viewer->window, 0.f, delta_y );
+        if(viewer->renderWindowHasFocus) {
+            //if the render window has focus, let ViewController to handle the mouse event
+            return false;
+        }
         // do extra frames to prevent imgui calculations ping
         viewer->incrementForceRedrawFrames( viewer->forceRedrawMinimumIncrementAfterEvents, viewer->swapOnLastPostEventsRedraw );
         return uiRenderManager_->canConsumeEvent( BasicUiRenderTask::InteractionMask::mouseScroll );
