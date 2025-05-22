@@ -4,25 +4,34 @@
 #include "MRViewerEventsListener.h"
 #include "MRViewerFwd.h"
 #include <AIS_ViewController.hxx>
+#include <Standard_Handle.hxx>
 #include <memory>
 
 // Forward declarations
 class Prs3d_Drawer;
 class AIS_Shape;
 class AIS_InteractiveObject;
+class AIS_InteractiveContext;
+class V3d_View;
+class V3d_Viewer;
 
-namespace MR {
+namespace MR
+{
 
 // Using protected inheritance because:
 // Public members from AIS_ViewController become protected in ViewController
 // Prevents external code from directly accessing AIS_ViewController's interface
 // ViewController can still use these features internally
-class MRVIEWER_CLASS ViewController
-    : protected AIS_ViewController,
-      public MultiListener<PostResizeListener, PreDrawListener, DrawListener,
-                           PostDrawListener, MouseMoveListener,
-                           MouseDownListener, MouseUpListener,
-                           MouseScrollListener> {
+class MRVIEWER_CLASS ViewController : protected AIS_ViewController,
+                                      public MultiListener<PostResizeListener,
+                                                           PreDrawListener,
+                                                           DrawListener,
+                                                           PostDrawListener,
+                                                           MouseMoveListener,
+                                                           MouseDownListener,
+                                                           MouseUpListener,
+                                                           MouseScrollListener>
+{
 public:
   MR_DELETE_MOVE(ViewController);
 
@@ -32,9 +41,38 @@ public:
   MRVIEWER_API void initialize();
   MRVIEWER_API void shutdown();
 
+  //! @brief Adds an interactive object to the scene.
+  //!
+  //! This method displays the given graphics object in the scene.
+  //! The behavior regarding object selection upon addition can be controlled
+  //! by the `disableSelectionOnAdd` parameter.
+  //!
+  //! @param object The graphics object to be added to the scene.
+  //! @param disableSelectionOnAdd If true, the object will be added without
+  //!                              activating it for selection, and it will not
+  //!                              affect the current selection state. This is useful
+  //!                              for auxiliary objects like measurement helpers that
+  //!                              should not be selectable by default.
+  //!                              If false (default), the object is added and will
+  //!                              participate in selection mechanisms according to
+  //!                              the AIS_InteractiveContext's current settings (e.g.,
+  //!                              auto-activation of selection).
+  //! @return true if the object was added (displayed) successfully, false otherwise.
+  MRVIEWER_API bool addObject(const Handle(AIS_InteractiveObject)& object,
+                              bool                                 disableSelectionOnAdd = false);
+
   //! Add an ais object to the ais context.
-  MRVIEWER_API void addAisObject(const Handle(AIS_InteractiveObject) &
-                                 theAisObject);
+  MRVIEWER_API void addAisObject(const Handle(AIS_InteractiveObject)& theAisObject);
+
+  //! Getters for OCCT objects
+  MRVIEWER_API const Handle(AIS_InteractiveContext)& getAisContext() const;
+  MRVIEWER_API const Handle(V3d_View)&               getView() const;
+  MRVIEWER_API const Handle(V3d_Viewer)&             getViewer() const;
+
+  //! @name override AIS_ViewController methods
+protected:
+  void OnSelectionChanged(const Handle(AIS_InteractiveContext)& theCtx,
+                          const Handle(V3d_View)&               theView) override;
 
 protected:
   //! Initialize OCCT Rendering System.
@@ -81,19 +119,21 @@ private:
   gp_Pnt screenToViewCoordinates(int theX, int theY) const;
 
   //! Configure the highlight style for the given drawer
-  void configureHighlightStyle(const Handle(Prs3d_Drawer) & theDrawer);
+  void configureHighlightStyle(const Handle(Prs3d_Drawer)& theDrawer);
 
   //! Get the default AIS drawer for nice shape display (shaded with edges)
   Handle(Prs3d_Drawer) getDefaultAISDrawer();
 
-  bool isMouseInViewport(int thePosX, int thePosY,
-                         const Vector2i &framebufferSize,
-                         const ViewportRectangle &viewportRect) const;
+  bool isMouseInViewport(int                      thePosX,
+                         int                      thePosY,
+                         const Vector2i&          framebufferSize,
+                         const ViewportRectangle& viewportRect) const;
 
   //! Adjust mouse position based on current viewport
-  Graphic3d_Vec2i
-  adjustMousePosition(int thePosX, int thePosY, const Vector2i &framebufferSize,
-                      const ViewportRectangle &viewportRect) const;
+  Graphic3d_Vec2i adjustMousePosition(int                      thePosX,
+                                      int                      thePosY,
+                                      const Vector2i&          framebufferSize,
+                                      const ViewportRectangle& viewportRect) const;
 
 private:
   struct ViewInternal;

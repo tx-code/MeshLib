@@ -2,6 +2,7 @@
 
 #include "MRViewerFwd.h"
 #include "MRMesh/MRMeshFwd.h"
+#include "MRMesh/MRMeshNormals.h"
 
 #include <MeshVS_DataSource.hxx>
 #include <MeshVS_EntityType.hxx>
@@ -11,18 +12,30 @@
 #include <TColStd_HArray2OfInteger.hxx>
 #include <TColStd_HArray2OfReal.hxx>
 
+#include <memory>
+#include <optional>
+
 //! Data source for mesh
 //! Basically the same as XSDRAWSTLVRML_DataSource but it allows to be free of TKXSDRAW
-class MRVIEWER_CLASS MeshDataSource : public MeshVS_DataSource
+class MRVIEWER_CLASS MR_MeshDataSource : public MeshVS_DataSource
 {
-  DEFINE_STANDARD_RTTIEXT(MeshDataSource, MeshVS_DataSource)
+  DEFINE_STANDARD_RTTIEXT(MR_MeshDataSource, MeshVS_DataSource)
 public:
   using Mesh = MR::Mesh;
   /**
-   * @brief Constructs a MeshDataSource for the given MR::Mesh.
+   * @brief Constructs a MR_MeshDataSource for the given MR::Mesh.
+   * @note If theFaceNormals and theVertNormals are not provided or the size is not equal to the
+   * number of faces and vertices respectively, the normals will be computed on the fly.
    * @param theMesh The mesh data to be visualized.
+   * @param theFaceNormals The face normals of the mesh.
+   * @param theVertNormals The vertex normals of the mesh.
    */
-  MRVIEWER_API MeshDataSource(const Mesh& theMesh);
+  MRVIEWER_API MR_MeshDataSource(
+    const Mesh&                           theMesh,
+    const std::optional<MR::FaceNormals>& theFaceNormals = std::nullopt,
+    const std::optional<MR::VertNormals>& theVertNormals = std::nullopt);
+
+  MRVIEWER_API ~MR_MeshDataSource() override;
 
   /**
    * @brief Retrieves geometry information for a specific node or element.
@@ -143,7 +156,10 @@ public:
   MRVIEWER_API Bnd_Box GetBoundingBox() const override;
 
 private:
-  const Mesh&                mesh_;     //!< Constant reference to the mesh data.
+  struct InternalMeshData;
+  std::unique_ptr<InternalMeshData> data_;
+
+  // This is very redundant, but even though we use MeshVS, we need to these maps.
   TColStd_PackedMapOfInteger nodes_;    //!< Map of all node IDs.
   TColStd_PackedMapOfInteger elements_; //!< Map of all element (face) IDs.
 };
