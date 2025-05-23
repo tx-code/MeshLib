@@ -48,6 +48,7 @@ public:
   //! by the `disableSelectionOnAdd` parameter.
   //!
   //! @param object The graphics object to be added to the scene.
+  //! @param mrObject The MRObject to be added to the scene.
   //! @param disableSelectionOnAdd If true, the object will be added without
   //!                              activating it for selection, and it will not
   //!                              affect the current selection state. This is useful
@@ -59,6 +60,7 @@ public:
   //!                              auto-activation of selection).
   //! @return true if the object was added (displayed) successfully, false otherwise.
   MRVIEWER_API bool addObject(const Handle(AIS_InteractiveObject)& object,
+                              const Object*                        mrObject,
                               bool                                 disableSelectionOnAdd = false);
 
   //! Add an ais object to the ais context.
@@ -96,6 +98,10 @@ protected:
   //! Initialize off-screen rendering.
   void initOffscreenRendering();
 
+  //! Override the default render object for MeshLib's RenderXXXObject with our own
+  //! RenderInteractiveXXXObject.
+  void registerRenderInteractiveObjects();
+
   //! @name Listeners
 protected:
   void postResize_(int w, int h) override;
@@ -124,6 +130,8 @@ private:
   //! Get the default AIS drawer for nice shape display (shaded with edges)
   Handle(Prs3d_Drawer) getDefaultAISDrawer();
 
+  //! Check if the mouse is in the viewport.
+  //! But we use the Viewer::renderWindowHasFocus to check if the mouse is in the viewport now.
   bool isMouseInViewport(int                      thePosX,
                          int                      thePosY,
                          const Vector2i&          framebufferSize,
@@ -134,6 +142,19 @@ private:
                                       int                      thePosY,
                                       const Vector2i&          framebufferSize,
                                       const ViewportRectangle& viewportRect) const;
+
+  //! Synchronize the render objects with the scene objects.
+  //!
+  //! This function ensures that the render objects (i.e. the objects that are
+  //! actually rendered) match the scene objects (i.e. the objects that are
+  //! present in the scene).
+  //!
+  //! If the render objects and scene objects are out of sync, this function
+  //! will update the render objects to match the scene objects.
+  //!
+  //! @param needRedraw Set to true if the scene needs to be redrawn after
+  //!                   calling this function.
+  void syncRenderObjectsWithScene(bool& needRedraw);
 
 private:
   struct ViewInternal;

@@ -594,6 +594,9 @@ public:
     [[nodiscard]] const MouseController &mouseController() const { return *mouseController_; }
     [[nodiscard]] MouseController &mouseController() { return *mouseController_; }
 
+    [[nodiscard]] const ViewController &getViewController() const { return *viewController_; }
+    [[nodiscard]] ViewController &getViewController() { return *viewController_; }
+
     // Store of recently opened files
     [[nodiscard]] const RecentFilesStore &recentFilesStore() const { return *recentFilesStore_; }
     [[nodiscard]] RecentFilesStore &recentFilesStore() { return *recentFilesStore_; }
