@@ -1815,9 +1815,10 @@ void RibbonMenu::drawRibbonViewportsLabels_()
         auto pos = viewer->viewportToScreen( Vector3f( width( vp.getViewportRect() ) - textSize.x - 25.0f * scaling,
             height( vp.getViewportRect() ) - textSize.y - 25.0f * scaling, 0.0f ), vp.id );
         ImGui::SetNextWindowPos( ImVec2( pos.x, pos.y ) );
+        // Let this window be always on the top of viewport window
         ImGui::Begin( windowName.c_str(), nullptr,
                       ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize |
-                      ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoBringToFrontOnFocus );
+                      ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoBackground);
         ImGui::Text( "%s", text.c_str() );
         ImGui::End();
     }
