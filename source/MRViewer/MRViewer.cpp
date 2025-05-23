@@ -1717,7 +1717,11 @@ bool Viewer::draw_( bool force )
 
     setupScene();
 
+#if 0
     drawFull( needSceneRedraw );
+#else
+    drawFullWithAIS( needSceneRedraw );
+#endif
 
     if ( forceRedrawFramesWithoutSwap_ > 0 )
         forceRedrawFramesWithoutSwap_--;
@@ -1822,6 +1826,36 @@ void Viewer::drawFull( bool dirtyScene )
         drawUiRenderObjects_();
         menuPlugin_->finishFrame();
     }
+}
+
+// Although we don't use scene texture here, but we may still use the dirty flag
+// to determine if we need to (re)draw the scene
+void Viewer::drawFullWithAIS( bool dirtyScene )
+{
+  if (menuPlugin_)
+    menuPlugin_->startFrame();
+
+  preDrawSignal();
+
+  // check dirty scene and need swap
+  // important to check after preDrawSignal
+  bool renderScene = forceRedrawFramesWithoutSwap_ <= 1;
+  renderScene      = renderScene && dirtyScene;
+  if (renderScene)
+  {
+    // We only support single viewport now
+    const auto& viewport = Viewport::get();
+    recursiveDraw_(viewport, SceneRoot::get(), AffineXf3f(), RenderModelPassMask::Opaque);
+
+    drawSignal();
+
+    resetRedraw_();
+  }
+
+  postDrawSignal();
+
+  if (menuPlugin_)
+    menuPlugin_->finishFrame();
 }
 
 void Viewer::drawScene()

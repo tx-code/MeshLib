@@ -177,6 +177,8 @@ public:
     MRVIEWER_API void draw( bool force = false );
     // Draw 3d scene with UI
     MRVIEWER_API void drawFull( bool dirtyScene );
+    // Draw 3d scene with AIS
+    MRVIEWER_API void drawFullWithAIS( bool dirtyScene );
     // Draw 3d scene without UI
     MRVIEWER_API void drawScene();
     // Call this function to force redraw scene into scene texture
