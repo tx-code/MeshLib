@@ -1,11 +1,15 @@
 #include "MRViewController.h"
 #include "MRMesh/MRBox.h"
 #include "MRMesh/MRMesh.h"
+#include "MRMesh/MRObject.h"
+#include "MRMesh/MRObjectMeshHolder.h"
+#include "MRMesh/MRObjectsAccess.h"
+#include "MRMesh/MRSceneRoot.h"
 #include "MRMouseController.h"
 #include "MRViewer.h"
+#include "MRRenderInteractiveMeshObject.h"
 #include "MRViewer/MRRibbonMenu.h"
 #include "MRViewport.h"
-#include "imgui.h"
 
 // OCCT
 #include <AIS_AnimationCamera.hxx>
@@ -20,6 +24,8 @@
 #include <Aspect_TypeOfTriedronPosition.hxx>
 #include <BRepPrimAPI_MakeBox.hxx>
 #include <BRepPrimAPI_MakeCone.hxx>
+#include <NCollection_DataMap.hxx>
+#include <NCollection_DoubleMap.hxx>
 #include <ElSLib.hxx>
 #include <GeomAbs_Shape.hxx>
 #include <Graphic3d_AspectFillArea3d.hxx>
@@ -46,6 +52,7 @@
 #include <V3d_Light.hxx>
 #include <V3d_TypeOfView.hxx>
 #include <V3d_View.hxx>
+#include <spdlog/spdlog.h>
 
 // Platform specific includes for Aspect_Window
 #if defined(_WIN32)
@@ -149,6 +156,10 @@ struct ViewController::ViewInternal
   //! If true, ViewCube animation completes in a single update
   bool fixedViewCubeAnimationLoop{false};
 
+  //! Used to map AIS objects to MRObjects
+  //! Why need this: otherwise we can't know when the MR::Object is removed or hidden.
+  NCollection_DoubleMap<Handle(AIS_InteractiveObject), const Object*> aisObjectToMrObjectMap;
+
   //! OpenGL graphics context
   Handle(OpenGl_Context) glContext;
   //! Framebuffer for offscreen rendering
@@ -251,6 +262,7 @@ void ViewController::shutdown()
 }
 
 bool ViewController::addObject(const Handle(AIS_InteractiveObject)& object,
+                               const Object*                        mrObject,
                                bool                                 disableSelectionOnAdd)
 {
   if (internal_->context.IsNull())
@@ -261,6 +273,12 @@ bool ViewController::addObject(const Handle(AIS_InteractiveObject)& object,
 
   if (object)
   {
+    if (internal_->context->IsDisplayed(object))
+    {
+      spdlog::warn("Cannot add AIS object that is already displayed.");
+      return false;
+    }
+
     if (disableSelectionOnAdd)
     {
       // Logic for when selection is disabled on add
@@ -279,6 +297,20 @@ bool ViewController::addObject(const Handle(AIS_InteractiveObject)& object,
       // Default logic
       internal_->context->Display(object, false);
     }
+
+    if (internal_->aisObjectToMrObjectMap.IsBound2(mrObject))
+    {
+      spdlog::warn("Cannot bind AIS object to an existing Object.");
+    }
+    else
+    {
+      spdlog::info("Binding AIS object to MR::Object {:p}.", (void*)mrObject);
+      internal_->aisObjectToMrObjectMap.Bind(object, mrObject);
+    }
+
+    internal_->view->ZFitAll();
+    internal_->view->FitAll(0.01, false);
+    internal_->view->Redraw();
   }
   return true;
 }
@@ -339,6 +371,7 @@ void ViewController::initOCCTRenderingSystem()
   initAisContext();
   initOffscreenRendering();
   initVisualSettings();
+  registerRenderInteractiveObjects();
 }
 
 void ViewController::initDemoScene()
@@ -577,6 +610,29 @@ void ViewController::initOffscreenRendering()
   }
 }
 
+void ViewController::registerRenderInteractiveObjects()
+{
+  // Conditionally overrides the renderer for ObjectMeshHolder if USE_CUSTOM_AIS_RENDERER is
+  // defined. This approach is chosen to avoid modifying the original MR_REGISTER_RENDER_OBJECT_IMPL
+  // macro calls elsewhere in the codebase.
+  //
+  // This relies on two assumptions:
+  // 1. RegisterRenderObjectConstructor allows overwriting a previously registered constructor
+  //    for the same type (typeid(ObjectMeshHolder)).
+  // 2. This function (initRenderInteractiveObjects) is called AFTER the static/default
+  //    registrations (via MR_REGISTER_RENDER_OBJECT_IMPL) have occurred but BEFORE any
+  //    ObjectMeshHolder instances are actually rendered or have their IRenderObject created.
+  //
+  // For VisualObject types not ObjectMeshHolder, or if USE_CUSTOM_AIS_RENDERER is not defined,
+  // the original rendering implementations registered via MR_REGISTER_RENDER_OBJECT_IMPL will be
+  // used.
+
+#ifdef USE_CUSTOM_AIS_RENDERER
+  RegisterRenderObjectConstructor(typeid(ObjectMeshHolder),
+                                  makeRenderObjectConstructor<RenderInteractiveMeshObject>());
+#endif
+}
+
 //---------------------------------------------------------
 // Listeners
 
@@ -667,6 +723,13 @@ void ViewController::draw_()
 
 void ViewController::postDraw_()
 {
+  bool needRedraw = false;
+  syncRenderObjectsWithScene(needRedraw);
+  if (needRedraw)
+  {
+    internal_->view->Redraw();
+  }
+
   // Let the view animation to update the view
   if (!ViewAnimation()->IsStopped())
   {
@@ -819,6 +882,65 @@ Graphic3d_Vec2i ViewController::adjustMousePosition(int                      the
 {
   return Graphic3d_Vec2i((int)(thePosX - viewportRect.min.x),
                          (int)(thePosY + viewportRect.max.y - framebufferSize.y));
+}
+
+// @note: Should be called after the Object has been added to the scene (in draw()).
+void ViewController::syncRenderObjectsWithScene(bool& needRedraw)
+{
+  // Check if any MR::Object is removed or hidden
+  const auto& objects = getAllObjectsInTree(SceneRoot::get(), ObjectSelectivityType::Any);
+  auto&       theMap  = internal_->aisObjectToMrObjectMap;
+
+  NCollection_DataMap<Handle(AIS_InteractiveObject), bool> visited;
+  for (const auto& obj : objects)
+  {
+    if (theMap.IsBound2(obj.get()))
+    {
+      const auto& aisObj = theMap.Find2(obj.get());
+      visited.Bind(aisObj, true);
+
+      // Check visibility
+      const bool isDisplayed = internal_->context->IsDisplayed(aisObj);
+      // must set the viewport id to check visibility, otherwise it will always return true
+      const bool isVisible = obj->isVisible(Viewport::get().id);
+      if (isDisplayed != isVisible)
+      {
+        if (isVisible)
+        {
+          internal_->context->Display(aisObj, false);
+        }
+        else
+        {
+          internal_->context->Erase(aisObj, false);
+        }
+        needRedraw = true;
+      }
+    }
+    else
+    {
+      spdlog::error("Cannot find AIS object for MR::Object {:p}.", (void*)obj.get());
+    }
+  }
+
+  // Remove the AIS objects that are not visited (their MR objects were removed from the scene)
+  // NCollection_DoubleMap<Handle(AIS_InteractiveObject), const Object*>::Iterator it(theMap);
+  // for (; it.More(); )
+  // {
+  //   const auto& aisObj = it.Key1();
+  //   if (!visited.IsBound(aisObj))
+  //   {
+  //     spdlog::info("Removing AIS object {:p}.", (void*)aisObj.get());
+  //     // The MR object was removed, so remove the AIS object too
+  //     internal_->context->Remove(aisObj, false);
+  //     // Remove from map (iterator will be advanced automatically)
+  //     theMap.UnBind1(it.Key1());
+  //     needRedraw = true;
+  //   }
+  //   else
+  //   {
+  //     it.Next();
+  //   }
+  // }
 }
 
 } // namespace MR
