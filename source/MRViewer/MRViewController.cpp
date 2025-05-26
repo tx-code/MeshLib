@@ -308,6 +308,7 @@ bool ViewController::addObject(const Handle(AIS_InteractiveObject)& object,
       internal_->aisObjectToMrObjectMap.Bind(object, mrObject);
     }
 
+    // TODO: we can at the end of each frame to Fit and Redraw the View
     internal_->view->ZFitAll();
     internal_->view->FitAll(0.01, false);
     internal_->view->Redraw();
@@ -887,6 +888,11 @@ Graphic3d_Vec2i ViewController::adjustMousePosition(int                      the
 // @note: Should be called after the Object has been added to the scene (in draw()).
 void ViewController::syncRenderObjectsWithScene(bool& needRedraw)
 {
+  // This method to sync the render objects although is not very efficient, but we don't need to
+  // change the MR::Object.
+  if (internal_->context.IsNull() || internal_->aisObjectToMrObjectMap.IsEmpty())
+    return;
+
   // Check if any MR::Object is removed or hidden
   const auto& objects = getAllObjectsInTree(SceneRoot::get(), ObjectSelectivityType::Any);
   auto&       theMap  = internal_->aisObjectToMrObjectMap;
@@ -923,24 +929,31 @@ void ViewController::syncRenderObjectsWithScene(bool& needRedraw)
   }
 
   // Remove the AIS objects that are not visited (their MR objects were removed from the scene)
-  // NCollection_DoubleMap<Handle(AIS_InteractiveObject), const Object*>::Iterator it(theMap);
-  // for (; it.More(); )
-  // {
-  //   const auto& aisObj = it.Key1();
-  //   if (!visited.IsBound(aisObj))
-  //   {
-  //     spdlog::info("Removing AIS object {:p}.", (void*)aisObj.get());
-  //     // The MR object was removed, so remove the AIS object too
-  //     internal_->context->Remove(aisObj, false);
-  //     // Remove from map (iterator will be advanced automatically)
-  //     theMap.UnBind1(it.Key1());
-  //     needRedraw = true;
-  //   }
-  //   else
-  //   {
-  //     it.Next();
-  //   }
-  // }
+  // NOTE: We should be careful here, because we may add some AIS objects but no related MR objects
+  // (for example, use an AIS_TextLabel to show some text).
+  NCollection_DoubleMap<Handle(AIS_InteractiveObject), const Object*>::Iterator it(theMap);
+  while (it.More())
+  {
+    auto currentKey = it.Key1();
+    // NOTE: Here we let the iterator pointer next, because deleting will invalidate the current pointer.
+    it.Next();
+
+    if (!visited.IsBound(currentKey))
+    {
+      {
+#if LOG_VIEW_CONTROLLER
+        spdlog::debug("Removing AIS object {:p}, type {}.",
+                      (void*)currentKey.get(),
+                      currentKey->get_type_name());
+#endif
+        // The MR object was removed, so remove the AIS object too
+        internal_->context->Remove(currentKey, false);
+        // Remove from map (iterator will be advanced automatically)
+        theMap.UnBind1(currentKey);
+        needRedraw = true;
+      }
+    }
+  }
 }
 
 } // namespace MR

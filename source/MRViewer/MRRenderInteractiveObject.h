@@ -27,9 +27,9 @@ public:
 
 protected:
   // This is called when the object is updated from the visual object
-  virtual void syncPropertiesFromVisualObject_() = 0;
+  virtual void syncPropertiesFromVisualObject_(ViewportId viewportId) = 0;
 
   //! Create the AIS object.
-  virtual void createInteractiveObject_() = 0;
+  virtual void createInteractiveObject_(const ModelRenderParams& params) = 0;
 };
 } // namespace MR

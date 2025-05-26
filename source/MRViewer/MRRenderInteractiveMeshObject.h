@@ -1,5 +1,6 @@
 #pragma once
 
+#include "MRMesh/MRViewportId.h"
 #include "MRMeshDataSource.h"
 #include "MRViewer/MRRenderInteractiveObject.h"
 
@@ -19,23 +20,17 @@ public:
   size_t heapBytes() const override;
   size_t glBytes() const override;
   
-  const Handle(AIS_InteractiveObject)& getAisObject() const override {
-    return meshPrs_;
-  }
+  const Handle(AIS_InteractiveObject)& getAisObject() const override;
 
-  const Handle(MeshVS_Mesh)& getMeshPrs() const {
-    return meshPrs_;
-  }
+  const Handle(MeshVS_Mesh)& getMeshPrs() const;
 
 protected:
-  void syncPropertiesFromVisualObject_() override;
+  void syncPropertiesFromVisualObject_(ViewportId viewportId) override;
 
-  void createInteractiveObject_() override;
+  void createInteractiveObject_(const ModelRenderParams& params) override;
 
   const ObjectMeshHolder* objMesh_;
-
-  bool isMeshPrsValid_ = false;
-  Handle(MR_MeshDataSource) meshDataSource_;
-  Handle(MeshVS_Mesh) meshPrs_;
+  struct InternalData;
+  std::unique_ptr<InternalData> internalData_;
 };
 } // namespace MR
