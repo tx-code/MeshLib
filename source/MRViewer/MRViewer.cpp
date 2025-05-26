@@ -1854,8 +1854,10 @@ void Viewer::drawFullWithAIS( bool dirtyScene )
 
   postDrawSignal();
 
-  if (menuPlugin_)
+  if (menuPlugin_) {
+    drawUiRenderObjects_();
     menuPlugin_->finishFrame();
+  }
 }
 
 void Viewer::drawScene()
