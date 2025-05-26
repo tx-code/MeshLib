@@ -796,7 +796,7 @@ void Viewport::setOrthographic( bool orthographic )
         return;
 
     params_.orthographic = orthographic;
-    getViewerInstance().getViewController().setOrthographic(orthographic);
+    ViewController::getViewControllerInstance().setOrthographic(orthographic);
     // preciseFitDataToScreenBorder( { 0.9f } );
     needRedraw_ = true;
 }

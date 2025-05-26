@@ -10,11 +10,12 @@
 #include "MRColorTheme.h"
 #include "MRRibbonMenu.h"
 #include "MRViewer.h"
+#include "MRViewer/MRViewer.h"
 #include "MRViewport.h"
 #include "MRMesh/MRObjectMesh.h"
 
 // OCCT
-#include <AIS_Axis.hxx>
+#include <AIS_Trihedron.hxx>
 #include <AIS_AnimationCamera.hxx>
 #include <AIS_DisplayMode.hxx>
 #include <AIS_InteractiveContext.hxx>
@@ -31,6 +32,7 @@
 #include <NCollection_DoubleMap.hxx>
 #include <ElSLib.hxx>
 #include <GeomAbs_Shape.hxx>
+#include <Geom_Axis2Placement.hxx>
 #include <Graphic3d_AspectFillArea3d.hxx>
 #include <Graphic3d_MaterialAspect.hxx>
 #include <Graphic3d_Vec2.hxx>
@@ -157,6 +159,8 @@ struct ViewController::ViewInternal
   int renderHeight{720};
   //! AIS ViewCube for scene orientation
   Handle(AIS_ViewCube) viewCube;
+  //! AIS Trihedron for global basis
+  Handle(AIS_Trihedron) trihedron;
   //! If true, ViewCube animation completes in a single update
   bool fixedViewCubeAnimationLoop{false};
 
@@ -202,6 +206,11 @@ ViewController::ViewController()
 }
 
 ViewController::~ViewController() = default;
+
+ViewController& ViewController::getViewControllerInstance()
+{
+  return getViewerInstance().getViewController();
+}
 
 void ViewController::initialize()
 {
@@ -377,10 +386,72 @@ void ViewController::setOrthographic(bool orthographic)
 
 void ViewController::showAxes(bool on)
 {
-  if(internal_->viewCube && internal_->viewCube->ToDrawAxes() != on) {
+  if (internal_->viewCube && internal_->viewCube->ToDrawAxes() != on)
+  {
     internal_->viewCube->SetDrawAxes(on);
     internal_->context->Redisplay(internal_->viewCube, false);
     internal_->view->RedrawImmediate();
+  }
+}
+
+void ViewController::showGlobalBasis(bool on, bool needRedraw)
+{
+  if (internal_->context.IsNull())
+    return;
+
+  const auto& globalBasic = getViewerInstance().globalBasisAxes;
+
+  const auto& xf   = globalBasic->xf(Viewport::get().id);
+  const auto& zCol = xf.A.col(2);
+  const auto  size = xf.A.x.x;
+  if (internal_->trihedron.IsNull())
+  {
+    gp_Ax2 Position(gp_Pnt(0, 0, 0), gp_Vec(zCol.x, zCol.y, zCol.z));
+    Position.SetLocation(gp_Pnt(0, 0, 0));
+
+    Handle(Geom_Axis2Placement) axis = new Geom_Axis2Placement(Position);
+    internal_->trihedron             = new AIS_Trihedron(axis);
+
+    internal_->trihedron->SetDatumDisplayMode(Prs3d_DM_WireFrame);
+    internal_->trihedron->SetDrawArrows(false);
+    internal_->trihedron->Attributes()->DatumAspect()->LineAspect(Prs3d_DP_XAxis)->SetWidth(2.5);
+    internal_->trihedron->Attributes()->DatumAspect()->LineAspect(Prs3d_DP_YAxis)->SetWidth(2.5);
+    internal_->trihedron->Attributes()->DatumAspect()->LineAspect(Prs3d_DP_ZAxis)->SetWidth(2.5);
+    internal_->trihedron->SetDatumPartColor(Prs3d_DP_XAxis, Quantity_NOC_RED2);
+    internal_->trihedron->SetDatumPartColor(Prs3d_DP_YAxis, Quantity_NOC_GREEN2);
+    internal_->trihedron->SetDatumPartColor(Prs3d_DP_ZAxis, Quantity_NOC_BLUE2);
+    internal_->trihedron->SetTextColor(Prs3d_DatumParts_XAxis, Quantity_NOC_RED2);
+    internal_->trihedron->SetTextColor(Prs3d_DatumParts_YAxis, Quantity_NOC_GREEN2);
+    internal_->trihedron->SetTextColor(Prs3d_DatumParts_ZAxis, Quantity_NOC_BLUE2);
+    internal_->trihedron->SetSize(size); // set size based on the scale of the basis axes
+  }
+
+  if (!on)
+  {
+    // 需要隐藏
+    if (internal_->context->IsDisplayed(internal_->trihedron))
+    {
+      internal_->context->Erase(internal_->trihedron, false);
+      if (needRedraw)
+        internal_->view->Redraw();
+    }
+    return;
+  }
+
+  if (!internal_->context->IsDisplayed(internal_->trihedron))
+  {
+    // 需要显示且当前未显示
+    internal_->context->Display(internal_->trihedron, false);
+    if (needRedraw)
+      internal_->view->Redraw();
+  }
+  else if (internal_->trihedron->Size() != size)
+  {
+    // 已显示但大小需要更新
+    internal_->trihedron->SetSize(size);
+    internal_->context->Redisplay(internal_->trihedron, false);
+    if (needRedraw)
+      internal_->view->Redraw();
   }
 }
 
@@ -713,7 +784,8 @@ void ViewController::postResize_(int w, int h)
 
 void ViewController::preDraw_()
 {
-  const auto& viewport     = getViewerInstance().viewport();
+  const auto& viewer       = getViewerInstance();
+  const auto& viewport     = viewer.viewport();
   const auto& viewportRect = viewport.getViewportRect();
 
   int  newRenderWidth  = (int)width(viewportRect);
@@ -754,7 +826,7 @@ void ViewController::preDraw_()
     needRedraw = true;
   }
 
-  auto menu_scaling = getViewerInstance().getMenuPlugin()->menu_scaling();
+  auto menu_scaling = viewer.getMenuPlugin()->menu_scaling();
   if (std::abs(internal_->scaleFactor - menu_scaling) > 0.0001)
   {
     internal_->scaleFactor = menu_scaling;
@@ -772,6 +844,13 @@ void ViewController::preDraw_()
 
     needRedraw = true;
   }
+
+  const auto& params = viewport.getParameters();
+  if (params.globalBasisScaleMode == Viewport::Parameters::GlobalBasisScaleMode::Auto)
+    viewer.globalBasisAxes->setXf(AffineXf3f::linear(Matrix3f::scale(params.objectScale * 0.5f)),
+                                  viewport.id);
+  // Will not repeatly redraw
+  showGlobalBasis(viewer.globalBasisAxes->isVisible(viewport.id), !needRedraw);
 
   if (needRedraw)
   {

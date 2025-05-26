@@ -562,6 +562,8 @@ void Viewport::showGlobalBasis( bool on )
     Viewer::constInstance()->globalBasisAxes->setVisible( on, id );
     needRedraw_ |= Viewer::constInstance()->globalBasisAxes->getRedrawFlag( id );
     Viewer::constInstance()->globalBasisAxes->resetRedrawFlag();
+
+    ViewController::getViewControllerInstance().showGlobalBasis(on);
 }
 
 void Viewport::setParameters( const Viewport::Parameters& params )

@@ -38,6 +38,8 @@ public:
   MRVIEWER_API ViewController();
   MRVIEWER_API ~ViewController();
 
+  MRVIEWER_API static ViewController& getViewControllerInstance();
+
   MRVIEWER_API void initialize();
   MRVIEWER_API void shutdown();
 
@@ -77,6 +79,7 @@ public:
   //@{
   void setOrthographic(bool orthographic);
   void showAxes(bool on);
+  void showGlobalBasis(bool on, bool needRedraw = true);
   //@}
 
   //! @name override AIS_ViewController methods
