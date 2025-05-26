@@ -9,6 +9,7 @@
 #include "MRViewer.h"
 #include "MRRenderInteractiveMeshObject.h"
 #include "MRViewer/MRRibbonMenu.h"
+#include "MRViewer/MRViewer.h"
 #include "MRViewport.h"
 
 // OCCT
@@ -356,9 +357,38 @@ void ViewController::OnSelectionChanged(
   [[maybe_unused]] const Handle(AIS_InteractiveContext)& theCtx,
   [[maybe_unused]] const Handle(V3d_View)&               theView)
 {
+  // Change the selection state of the object in scene list according to the AIS context.
+  theCtx->InitSelected();
+  while (theCtx->MoreSelected())
+  {
+    const Handle(AIS_InteractiveObject)& anAisObject = theCtx->SelectedInteractive();
+    if (internal_->aisObjectToMrObjectMap.IsBound1(anAisObject))
+    {
+      const Object* mrObject = internal_->aisObjectToMrObjectMap.Find1(anAisObject);
+      const_cast<Object*>(mrObject)->select(true);
+      // No need to redraw as the AIS context already does it
+      mrObject->resetRedrawFlag();
+    }
 
-  // TODO: Meaningful implementation
-  spdlog::info("Selection changed in OCCT context.");
+    theCtx->NextSelected();
+  }
+
+  // Deselect all other objects
+  NCollection_DoubleMap<Handle(AIS_InteractiveObject), const Object*>::Iterator it(
+    internal_->aisObjectToMrObjectMap);
+  while (it.More())
+  {
+    auto currentKey = it.Key1();
+    it.Next();
+
+    if (!theCtx->IsSelected(currentKey))
+    {
+      const Object* mrObject = internal_->aisObjectToMrObjectMap.Find1(currentKey);
+      const_cast<Object*>(mrObject)->select(false);
+      // No need to redraw as the AIS context already does it
+      mrObject->resetRedrawFlag();
+    }
+  }
 }
 
 //---------------------------------------------------------
@@ -447,9 +477,12 @@ void ViewController::initV3dViewer()
     Quantity_Color(200 / 255.0, 200 / 255.0, 200 / 255.0, Quantity_TOC_RGB),
     Aspect_GFM_VER);
 
-  internal_->view->ChangeRenderingParams().ToShowStats = Standard_True;
-  internal_->view->ChangeRenderingParams().CollectedStats =
-    Graphic3d_RenderingParams::PerfCounters_All;
+  if (getViewerInstance().experimentalFeatures)
+  {
+    internal_->view->ChangeRenderingParams().ToShowStats = Standard_True;
+    internal_->view->ChangeRenderingParams().CollectedStats =
+      Graphic3d_RenderingParams::PerfCounters_All;
+  }
 
   internal_->glContext = aGraphicDriver->GetSharedContext();
   if (internal_->glContext.IsNull())
@@ -921,6 +954,17 @@ void ViewController::syncRenderObjectsWithScene(bool& needRedraw)
         }
         needRedraw = true;
       }
+
+      // Check selection, the object in scene tree may be selected but not in AIS context.
+      // Compared with the OnSelectionChanged() method, this is the opposite logic.
+      bool isSelectedInContext = internal_->context->IsSelected(aisObj);
+      bool isSelected          = obj->isSelected();
+      if (isSelectedInContext != isSelected && isVisible)
+      {
+        internal_->context->AddOrRemoveSelected(aisObj, false);
+        // FIXME: We can only redraw the immediate layer
+        needRedraw = true;
+      }
     }
     else
     {
@@ -935,7 +979,8 @@ void ViewController::syncRenderObjectsWithScene(bool& needRedraw)
   while (it.More())
   {
     auto currentKey = it.Key1();
-    // NOTE: Here we let the iterator pointer next, because deleting will invalidate the current pointer.
+    // NOTE: Here we let the iterator pointer next, because deleting will invalidate the current
+    // pointer.
     it.Next();
 
     if (!visited.IsBound(currentKey))
