@@ -17,6 +17,7 @@
 #include "MRMesh/MRPointCloud.h"
 #include "MRMesh/MRPolyline.h"
 #include "MRPch/MRTBB.h"
+#include "MRViewController.h"
 
 #ifndef MRVIEWER_NO_VOXELS
 #include "MRVoxels/MRObjectVoxels.h"
@@ -795,7 +796,8 @@ void Viewport::setOrthographic( bool orthographic )
         return;
 
     params_.orthographic = orthographic;
-    preciseFitDataToScreenBorder( { 0.9f } );
+    getViewerInstance().getViewController().setOrthographic(orthographic);
+    // preciseFitDataToScreenBorder( { 0.9f } );
     needRedraw_ = true;
 }
 

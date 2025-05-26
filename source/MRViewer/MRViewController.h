@@ -73,6 +73,12 @@ public:
 
   MRVIEWER_API Vector3f getMousePositionInWorldSpace() const;
 
+  //! @name Viewport helpers
+  //@{
+  void setOrthographic(bool orthographic);
+  void showAxes(bool on);
+  //@}
+
   //! @name override AIS_ViewController methods
 protected:
   void OnSelectionChanged(const Handle(AIS_InteractiveContext)& theCtx,

@@ -22,6 +22,7 @@
 #include "MRMesh/MRPolyline.h"
 #include "MRPch/MRSuppressWarning.h"
 #include "MRPch/MRTBB.h"
+#include "MRViewController.h"
 
 #ifndef MRVIEWER_NO_VOXELS
 #include "MRVoxels/MRObjectVoxels.h"
@@ -526,6 +527,8 @@ void Viewport::showAxes( bool on )
     Viewer::constInstance()->basisAxes->setVisible( on, id );
     needRedraw_ |= Viewer::constInstance()->basisAxes->getRedrawFlag( id );
     Viewer::constInstance()->basisAxes->resetRedrawFlag();
+
+    getViewerInstance().getViewController().showAxes(on);
 }
 
 void Viewport::showClippingPlane( bool on )

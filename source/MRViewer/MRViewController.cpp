@@ -6,13 +6,15 @@
 #include "MRMesh/MRObjectsAccess.h"
 #include "MRMesh/MRSceneRoot.h"
 #include "MRMouseController.h"
-#include "MRViewer.h"
 #include "MRRenderInteractiveMeshObject.h"
-#include "MRViewer/MRRibbonMenu.h"
-#include "MRViewer/MRViewer.h"
+#include "MRColorTheme.h"
+#include "MRRibbonMenu.h"
+#include "MRViewer.h"
 #include "MRViewport.h"
+#include "MRMesh/MRObjectMesh.h"
 
 // OCCT
+#include <AIS_Axis.hxx>
 #include <AIS_AnimationCamera.hxx>
 #include <AIS_DisplayMode.hxx>
 #include <AIS_InteractiveContext.hxx>
@@ -189,6 +191,9 @@ struct ViewController::ViewInternal
   Quantity_Color selectionColor{Quantity_NOC_RED};
   //! Highlight color
   Quantity_Color highlightColor{Quantity_NOC_YELLOW};
+
+  // Connections
+  boost::signals2::scoped_connection themeChangedConnection;
 };
 
 ViewController::ViewController()
@@ -357,6 +362,28 @@ Vector3f ViewController::getMousePositionInWorldSpace() const
           float(internal_->positionInView.Z())};
 }
 
+void ViewController::setOrthographic(bool orthographic)
+{
+  if (internal_->view)
+  {
+    internal_->view->Camera()->SetProjectionType(orthographic
+                                                   ? Graphic3d_Camera::Projection_Orthographic
+                                                   : Graphic3d_Camera::Projection_Perspective);
+    internal_->view->ZFitAll();
+    internal_->view->FitAll(0.01, false);
+    internal_->view->Redraw();
+  }
+}
+
+void ViewController::showAxes(bool on)
+{
+  if(internal_->viewCube && internal_->viewCube->ToDrawAxes() != on) {
+    internal_->viewCube->SetDrawAxes(on);
+    internal_->context->Redisplay(internal_->viewCube, false);
+    internal_->view->RedrawImmediate();
+  }
+}
+
 //---------------------------------------------------------
 // AIS_ViewController overrides
 
@@ -439,6 +466,15 @@ void ViewController::initV3dViewer()
   view_ = viewer_->CreateView();
   view_->SetImmediateUpdate(Standard_False);
 
+  if (Viewport::get().getParameters().orthographic)
+  {
+    view_->Camera()->SetProjectionType(Graphic3d_Camera::Projection_Orthographic);
+  }
+  else
+  {
+    view_->Camera()->SetProjectionType(Graphic3d_Camera::Projection_Perspective);
+  }
+
   Aspect_RenderingContext aNativeGlContext = NULL;
 #if defined(_WIN32)
   aNativeGlContext = glfwGetWGLContext(internal_->glfwWindow);
@@ -448,12 +484,30 @@ void ViewController::initV3dViewer()
   aNativeGlContext = glfwGetGLXContext(internal_->glfwWindow);
 #endif
   view_->SetWindow(internal_->occtAspectWindow, aNativeGlContext);
-  // Dark theme
-  // TODO: Make this configurable
-  view_->SetBgGradientColors(
-    Quantity_Color(100 / 255.0, 100 / 255.0, 100 / 255.0, Quantity_TOC_RGB),
-    Quantity_Color(200 / 255.0, 200 / 255.0, 200 / 255.0, Quantity_TOC_RGB),
-    Aspect_GFM_VER);
+
+  internal_->themeChangedConnection = ColorTheme::instance().onChanged([&view_]() {
+    // TODO: Need more adjustment
+    if (ColorTheme::getPreset() == ColorTheme::Preset::Dark)
+      view_->SetBgGradientColors(
+        Quantity_Color(100 / 255.0, 100 / 255.0, 100 / 255.0, Quantity_TOC_RGB),
+        Quantity_Color(200 / 255.0, 200 / 255.0, 200 / 255.0, Quantity_TOC_RGB),
+        Aspect_GFM_VER,
+        true);
+    else if (ColorTheme::getPreset() == ColorTheme::Preset::Light)
+      view_->SetBgGradientColors(
+        Quantity_Color(128 / 255.0, 148 / 255.0, 255 / 255.0, Quantity_TOC_RGB),
+        Quantity_Color(Quantity_NOC_WHITE),
+        Aspect_GFM_VER,
+        true);
+  });
+
+  spdlog::info("Theme is {}",
+               ColorTheme::getPreset() == ColorTheme::Preset::Dark ? "Dark" : "Light");
+
+  // Rendering Params
+  internal_->view->ChangeRenderingParams().IsAntialiasingEnabled = true;
+  // We can getMsaa from viewer, but it's too big.
+  internal_->view->ChangeRenderingParams().NbMsaaSamples = 4;
 
   if (getViewerInstance().experimentalFeatures)
   {
