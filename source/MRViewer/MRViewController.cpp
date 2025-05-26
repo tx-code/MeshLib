@@ -53,6 +53,7 @@
 #include <V3d_Light.hxx>
 #include <V3d_TypeOfView.hxx>
 #include <V3d_View.hxx>
+#include <gp_Vec.hxx>
 #include <spdlog/spdlog.h>
 
 // Platform specific includes for Aspect_Window
@@ -238,7 +239,6 @@ void ViewController::initialize()
   }
 
   initOCCTRenderingSystem();
-  initDemoScene();
 }
 
 void ViewController::shutdown()
@@ -350,6 +350,13 @@ const Handle(V3d_Viewer)& ViewController::getViewer() const
   return internal_->viewer;
 }
 
+Vector3f ViewController::getMousePositionInWorldSpace() const
+{
+  return {float(internal_->positionInView.X()),
+          float(internal_->positionInView.Y()),
+          float(internal_->positionInView.Z())};
+}
+
 //---------------------------------------------------------
 // AIS_ViewController overrides
 
@@ -403,35 +410,6 @@ void ViewController::initOCCTRenderingSystem()
   initOffscreenRendering();
   initVisualSettings();
   registerRenderInteractiveObjects();
-}
-
-void ViewController::initDemoScene()
-{
-  assert(internal_->context && internal_->view);
-  gp_Ax2 anAxis;
-  anAxis.SetLocation(gp_Pnt(0.0, 0.0, 0.0));
-  Handle(AIS_Shape) aBox = new AIS_Shape(BRepPrimAPI_MakeBox(anAxis, 50, 50, 50).Shape());
-  addAisObject(aBox);
-
-  anAxis.SetLocation(gp_Pnt(25.0, 125.0, 0.0));
-  Handle(AIS_Shape) aCone = new AIS_Shape(BRepPrimAPI_MakeCone(anAxis, 25, 0, 50).Shape());
-  addAisObject(aCone);
-
-  TCollection_AsciiString aGlInfo;
-  {
-    TColStd_IndexedDataMapOfStringString aRendInfo;
-    internal_->view->DiagnosticInformation(aRendInfo, Graphic3d_DiagnosticInfo_Basic);
-    for (TColStd_IndexedDataMapOfStringString::Iterator aValueIter(aRendInfo); aValueIter.More();
-         aValueIter.Next())
-    {
-      if (!aGlInfo.IsEmpty())
-      {
-        aGlInfo += "\n";
-      }
-      aGlInfo += TCollection_AsciiString("  ") + aValueIter.Key() + ": " + aValueIter.Value();
-    }
-  }
-  spdlog::info("OpenGL info: \n{}", aGlInfo.ToCString());
 }
 
 void ViewController::initV3dViewer()
@@ -821,6 +799,13 @@ bool ViewController::onMouseMove_(int x, int y)
   }
 
   Graphic3d_Vec2i fixedPos = adjustMousePosition(x, y, framebufferSize, rect);
+  const auto&     selector = internal_->context->MainSelector();
+  selector->Pick(fixedPos.x(), fixedPos.y(), internal_->view);
+
+  internal_->positionInView = selector->NbPicked() > 0
+                                ? selector->PickedPoint(1)
+                                : screenToViewCoordinates(fixedPos.x(), fixedPos.y());
+
   if (UpdateMousePosition(fixedPos, PressedMouseButtons(), LastMouseFlags(), false))
   {
     internal_->view->InvalidateImmediate();
@@ -880,6 +865,26 @@ Handle(Prs3d_Drawer) ViewController::getDefaultAISDrawer()
   drawer->SetDisplayMode(AIS_Shaded);
   drawer->SetTypeOfDeflection(Aspect_TOD_RELATIVE);
   return drawer;
+}
+
+gp_Pnt ViewController::screenToViewCoordinates(int theX, int theY) const
+{
+  double xEye, yEye, zEye, xAt, yAt, zAt;
+  internal_->view->Eye(xEye, yEye, zEye);
+  internal_->view->At(xAt, yAt, zAt);
+  const gp_Pnt pntEye(xEye, yEye, zEye);
+  const gp_Pnt pntAt(xAt, yAt, zAt);
+
+  const gp_Vec vecEye(pntEye, pntAt);
+  const bool   vecEyeNotNull = vecEye.SquareMagnitude() > gp::Resolution();
+  const gp_Dir dirEye(vecEyeNotNull ? vecEye : gp_Vec{0, 0, 1});
+
+  const gp_Pln planeView(pntAt, dirEye);
+  double       px, py, pz;
+  internal_->view->Convert(theX, theY, px, py, pz);
+  const gp_Pnt   pntConverted(px, py, pz);
+  const gp_Pnt2d pntConvertedOnPlane = ProjLib::Project(planeView, pntConverted);
+  return ElSLib::Value(pntConvertedOnPlane.X(), pntConvertedOnPlane.Y(), planeView);
 }
 
 void ViewController::configureHighlightStyle(const Handle(Prs3d_Drawer)& theDrawer)

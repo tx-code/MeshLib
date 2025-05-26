@@ -71,6 +71,8 @@ public:
   MRVIEWER_API const Handle(V3d_View)&               getView() const;
   MRVIEWER_API const Handle(V3d_Viewer)&             getViewer() const;
 
+  MRVIEWER_API Vector3f getMousePositionInWorldSpace() const;
+
   //! @name override AIS_ViewController methods
 protected:
   void OnSelectionChanged(const Handle(AIS_InteractiveContext)& theCtx,
@@ -79,12 +81,6 @@ protected:
 protected:
   //! Initialize OCCT Rendering System.
   void initOCCTRenderingSystem();
-
-  //! Fill 3D Viewer with a DEMO items.
-  //! @note This is a temporary function to fill the 3D Viewer with a DEMO
-  //! items.
-  //! FIXME: It should be removed after the DEMO items are implemented.
-  void initDemoScene();
 
   //! Initialize OCCT 3D Viewer.
   void initV3dViewer();

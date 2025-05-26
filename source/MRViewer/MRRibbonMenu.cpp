@@ -1811,6 +1811,15 @@ void RibbonMenu::drawRibbonViewportsLabels_()
             text = fmt::format( "{}, {}", label, cProjModeString[int( !vp.getParameters().orthographic )] );
         else
             text = fmt::format( "{}", cProjModeString[int( !vp.getParameters().orthographic )] );
+
+        auto mousePosInWorldSpace =
+          getViewerInstance().getViewController().getMousePositionInWorldSpace();
+        text = fmt::format("X:{:.3f}, Y: {:.3f}, Z: {:.3f}, {}",
+                           mousePosInWorldSpace.x,
+                           mousePosInWorldSpace.y,
+                           mousePosInWorldSpace.z,
+                           text);
+
         auto textSize = ImGui::CalcTextSize( text.c_str() );
         auto pos = viewer->viewportToScreen( Vector3f( width( vp.getViewportRect() ) - textSize.x - 25.0f * scaling,
             height( vp.getViewportRect() ) - textSize.y - 25.0f * scaling, 0.0f ), vp.id );
