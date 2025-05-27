@@ -1,11 +1,14 @@
 #include "MRRenderInteractiveMeshObject.h"
+#include "MRMesh/MRMeshFwd.h"
+#include "MRMesh/MRMatrix4.h"
 #include "MRMesh/MRObjectMeshHolder.h"
 #include "MRMesh/MRVisualObject.h"
 #include "MRMeshDataSource.h"
 #include "MRViewController.h"
-#include "MRViewer/MRViewer.h"
+#include "MRViewer.h"
 #include "MRMesh/MRTimer.h"
 #include "MRQuantityColorUtils.h"
+#include "MRViewerInstance.h"
 
 #include <bitset>
 
@@ -21,18 +24,20 @@
 #include <MeshVS_VectorPrsBuilder.hxx>
 #include <MeshVS_NodalColorPrsBuilder.hxx>
 #include <AIS_InteractiveContext.hxx>
+#include <gp_Trsf.hxx>
 
 namespace MR
 {
 struct RenderInteractiveMeshObject::InternalData
 {
-  bool                      isMeshPrsValid_{false};
-  Handle(MR_MeshDataSource) meshDataSource_;
-  Handle(MeshVS_Mesh)       meshPrs_;
-  uint32_t                  dirtyFlags_{0};
+  bool                      isMeshPrsValid{false};
+  Handle(MR_MeshDataSource) meshDataSource;
+  Handle(MeshVS_Mesh)       meshPrs;
+  uint32_t                  dirtyFlags{0};
+  Matrix4f                  prevXf{Matrix4f::identity()};
 
   // When some properties are changed, we need to redisplay the mesh.
-  bool needRedisplay_{false};
+  bool needRedisplay{false};
 
   enum PrsBuilderType : Standard_Integer
   {
@@ -62,27 +67,49 @@ bool RenderInteractiveMeshObject::render([[maybe_unused]] const ModelRenderParam
     return false;
   }
   // At the beginning of each frame, we need to update the dirty flags
-  internalData_->dirtyFlags_ = objMesh_->getDirtyFlags();
+  internalData_->dirtyFlags = objMesh_->getDirtyFlags();
+
+  auto& viewController = ViewController::getViewControllerInstance();
+  auto& context        = viewController.getAisContext();
 
   // Create the AIS object if it doesn't exist
   createInteractiveObject_(params);
+
+  if (params.modelMatrix != internalData_->prevXf)
+  {
+    // The modelMatrix is the combined matrix of the object and its parent
+    internalData_->prevXf = params.modelMatrix;
+    gp_Trsf localTrans;
+    localTrans.SetValues(internalData_->prevXf.x.x,
+                         internalData_->prevXf.x.y,
+                         internalData_->prevXf.x.z,
+                         internalData_->prevXf.x.w,
+                         internalData_->prevXf.y.x,
+                         internalData_->prevXf.y.y,
+                         internalData_->prevXf.y.z,
+                         internalData_->prevXf.y.w,
+                         internalData_->prevXf.z.x,
+                         internalData_->prevXf.z.y,
+                         internalData_->prevXf.z.z,
+                         internalData_->prevXf.z.w);
+    context->SetLocation(internalData_->meshPrs, localTrans);
+    viewController.forceInvalidate();
+  }
+
   // Sync properties from the visual object
   syncPropertiesFromVisualObject_(params.viewportId);
 
   // Add the AIS object to the context if it's not already displayed
-  auto& viewController = getViewerInstance().getViewController();
-  auto& context        = viewController.getAisContext();
-
   auto fnRedisplay = [&context, this]() {
-    context->Redisplay(internalData_->meshPrs_, false);
-    internalData_->needRedisplay_ = false;
+    context->Redisplay(internalData_->meshPrs, false);
+    internalData_->needRedisplay = false;
   };
 
-  if (!context->IsDisplayed(internalData_->meshPrs_))
+  if (!context->IsDisplayed(internalData_->meshPrs))
   {
-    viewController.addObject(internalData_->meshPrs_, objMesh_);
+    viewController.addObject(internalData_->meshPrs, objMesh_);
   }
-  else if (internalData_->needRedisplay_)
+  else if (internalData_->needRedisplay)
   {
     fnRedisplay();
   }
@@ -104,28 +131,28 @@ size_t RenderInteractiveMeshObject::glBytes() const
 
 const Handle(AIS_InteractiveObject)& RenderInteractiveMeshObject::getAisObject() const
 {
-  return internalData_->meshPrs_;
+  return internalData_->meshPrs;
 }
 
 const Handle(MeshVS_Mesh)& RenderInteractiveMeshObject::getMeshPrs() const
 {
-  return internalData_->meshPrs_;
+  return internalData_->meshPrs;
 }
 
 void RenderInteractiveMeshObject::syncPropertiesFromVisualObject_(
   [[maybe_unused]] ViewportId viewportId)
 {
-  assert(internalData_->isMeshPrsValid_);
+  assert(internalData_->isMeshPrsValid);
   MR_TIMER;
 
   // Note: we must reset dirty flags here, or the mesh will be redrawn every frame
   objMesh_->resetDirty();
 
-  if (internalData_->dirtyFlags_ & DIRTY_MESH)
+  if (internalData_->dirtyFlags & DIRTY_MESH)
   {
     // TODO: Use dirty flags to update the mesh datasource and prsbuilders
     spdlog::debug("Mesh is dirty, dirtyFlags: {}",
-                  std::bitset<32>(internalData_->dirtyFlags_).to_string());
+                  std::bitset<32>(internalData_->dirtyFlags).to_string());
   }
 
   // Get visualize properties from visual object
@@ -135,11 +162,11 @@ void RenderInteractiveMeshObject::syncPropertiesFromVisualObject_(
     !objMesh_->getVisualizeProperty(MeshVisualizePropertyType::FlatShading, viewportId);
 
   // current Drawer's attributes
-  Handle(MeshVS_Drawer) drawer = internalData_->meshPrs_->GetDrawer();
+  Handle(MeshVS_Drawer) drawer = internalData_->meshPrs->GetDrawer();
 
   if (objMesh_->getRedrawFlag(viewportId))
   {
-    internalData_->needRedisplay_ = true;
+    internalData_->needRedisplay = true;
     // FIXME: We only support the edges and nodes for now
     bool prevShowEdges;
     bool prevShowNodes;
@@ -165,7 +192,7 @@ void RenderInteractiveMeshObject::syncPropertiesFromVisualObject_(
     drawer->GetColor(MeshVS_DA_InteriorColor, prevFrontColor);
     drawer->GetColor(MeshVS_DA_InteriorColor, prevBackColor);
     drawer->GetColor(MeshVS_DA_EdgeColor, prevEdgesColor);
-    internalData_->meshPrs_->GetBuilderById(InternalData::PrsBuilderType_Main)
+    internalData_->meshPrs->GetBuilderById(InternalData::PrsBuilderType_Main)
       ->GetDrawer()
       ->GetColor(MeshVS_DA_InteriorColor, prevFrontColor);
 
@@ -198,32 +225,32 @@ void RenderInteractiveMeshObject::createInteractiveObject_(
   [[maybe_unused]] const ModelRenderParams& params)
 {
   // We only create once
-  if (internalData_->isMeshPrsValid_)
+  if (internalData_->isMeshPrsValid)
   {
     return;
   }
 
-  internalData_->meshPrs_ = new MeshVS_Mesh();
-  internalData_->meshPrs_->SetDisplayMode(MeshVS_DMF_Shading);
-  internalData_->meshPrs_->SetMeshSelMethod(MeshVS_MSM_PRECISE); // select whole mesh
-  internalData_->meshPrs_->GetDrawer()->SetBoolean(MeshVS_DA_ColorReflection, true);
+  internalData_->meshPrs = new MeshVS_Mesh();
+  internalData_->meshPrs->SetDisplayMode(MeshVS_DMF_Shading);
+  internalData_->meshPrs->SetMeshSelMethod(MeshVS_MSM_PRECISE); // select whole mesh
+  internalData_->meshPrs->GetDrawer()->SetBoolean(MeshVS_DA_ColorReflection, true);
 
-  internalData_->dirtyFlags_ &= ~DIRTY_MESH;
-  internalData_->meshDataSource_ = new MR_MeshDataSource(*objMesh_->mesh());
-  internalData_->meshPrs_->SetDataSource(internalData_->meshDataSource_);
+  internalData_->dirtyFlags &= ~DIRTY_MESH;
+  internalData_->meshDataSource = new MR_MeshDataSource(*objMesh_->mesh());
+  internalData_->meshPrs->SetDataSource(internalData_->meshDataSource);
 
   // Add Builders
   // We can get the builder by id.
   Handle(MeshVS_MeshPrsBuilder) mainBuilder =
-    new MeshVS_MeshPrsBuilder(internalData_->meshPrs_,
+    new MeshVS_MeshPrsBuilder(internalData_->meshPrs,
                               MeshVS_DMF_OCCMask,
-                              internalData_->meshDataSource_,
+                              internalData_->meshDataSource,
                               InternalData::PrsBuilderType_Main);
-  internalData_->meshPrs_->AddBuilder(mainBuilder, true);
+  internalData_->meshPrs->AddBuilder(mainBuilder, true);
 
   // Optional
-  internalData_->meshPrs_->SetOwner(this);
+  internalData_->meshPrs->SetOwner(this);
 
-  internalData_->isMeshPrsValid_ = true;
+  internalData_->isMeshPrsValid = true;
 }
 } // namespace MR
