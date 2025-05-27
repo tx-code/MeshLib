@@ -43,6 +43,9 @@ public:
   MRVIEWER_API void initialize();
   MRVIEWER_API void shutdown();
 
+  MRVIEWER_API void forceInvalidate();
+  MRVIEWER_API void forceInvalidateImmediate();
+
   //! @brief Adds an interactive object to the scene.
   //!
   //! This method displays the given graphics object in the scene.

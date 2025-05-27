@@ -276,6 +276,22 @@ void ViewController::shutdown()
   internal_->occtAspectWindow.Nullify();
 }
 
+void ViewController::forceInvalidate()
+{
+  if (!internal_->view.IsNull())
+  {
+    internal_->view->Invalidate();
+  }
+}
+
+void ViewController::forceInvalidateImmediate()
+{
+  if (!internal_->view.IsNull())
+  {
+    internal_->view->InvalidateImmediate();
+  }
+}
+
 bool ViewController::addObject(const Handle(AIS_InteractiveObject)& object,
                                const Object*                        mrObject,
                                bool                                 disableSelectionOnAdd)
@@ -326,7 +342,7 @@ bool ViewController::addObject(const Handle(AIS_InteractiveObject)& object,
     // TODO: we can at the end of each frame to Fit and Redraw the View
     internal_->view->ZFitAll();
     internal_->view->FitAll(0.01, false);
-    internal_->view->Redraw();
+    internal_->view->Invalidate();
   }
   return true;
 }
@@ -380,7 +396,7 @@ void ViewController::setOrthographic(bool orthographic)
                                                    : Graphic3d_Camera::Projection_Perspective);
     internal_->view->ZFitAll();
     internal_->view->FitAll(0.01, false);
-    internal_->view->Redraw();
+    internal_->view->Invalidate();
   }
 }
 
@@ -390,7 +406,7 @@ void ViewController::showAxes(bool on)
   {
     internal_->viewCube->SetDrawAxes(on);
     internal_->context->Redisplay(internal_->viewCube, false);
-    internal_->view->RedrawImmediate();
+    internal_->view->InvalidateImmediate();
   }
 }
 
@@ -433,7 +449,7 @@ void ViewController::showGlobalBasis(bool on, bool needRedraw)
     {
       internal_->context->Erase(internal_->trihedron, false);
       if (needRedraw)
-        internal_->view->Redraw();
+        internal_->view->Invalidate();
     }
     return;
   }
@@ -443,7 +459,7 @@ void ViewController::showGlobalBasis(bool on, bool needRedraw)
     // 需要显示且当前未显示
     internal_->context->Display(internal_->trihedron, false);
     if (needRedraw)
-      internal_->view->Redraw();
+      internal_->view->Invalidate();
   }
   else if (internal_->trihedron->Size() != size)
   {
@@ -451,7 +467,7 @@ void ViewController::showGlobalBasis(bool on, bool needRedraw)
     internal_->trihedron->SetSize(size);
     internal_->context->Redisplay(internal_->trihedron, false);
     if (needRedraw)
-      internal_->view->Redraw();
+      internal_->view->Invalidate();
   }
 }
 
@@ -854,7 +870,7 @@ void ViewController::preDraw_()
 
   if (needRedraw)
   {
-    internal_->view->Redraw();
+    internal_->view->Invalidate();
   }
 }
 
@@ -872,7 +888,7 @@ void ViewController::postDraw_()
   syncRenderObjectsWithScene(needRedraw);
   if (needRedraw)
   {
-    internal_->view->Redraw();
+    internal_->view->Invalidate();
   }
 
   // Let the view animation to update the view
