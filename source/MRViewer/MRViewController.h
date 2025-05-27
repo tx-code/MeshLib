@@ -83,6 +83,7 @@ public:
   void setOrthographic(bool orthographic);
   void showAxes(bool on);
   void showGlobalBasis(bool on, bool needRedraw = true);
+  void fitAll(const Box3f& box, float margin = 0.01f);
   //@}
 
   //! @name override AIS_ViewController methods

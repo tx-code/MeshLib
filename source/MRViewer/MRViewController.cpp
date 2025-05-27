@@ -471,6 +471,17 @@ void ViewController::showGlobalBasis(bool on, bool needRedraw)
   }
 }
 
+void ViewController::fitAll(const Box3f& box, float margin)
+{
+  if (getView())
+  {
+    getView()->FitAll(
+      Bnd_Box(gp_Pnt(box.min.x, box.min.y, box.min.z), gp_Pnt(box.max.x, box.max.y, box.max.z)),
+      std::clamp(margin, 0.0f, 1.0f),
+      false);
+  }
+}
+
 //---------------------------------------------------------
 // AIS_ViewController overrides
 

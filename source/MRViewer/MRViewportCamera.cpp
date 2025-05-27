@@ -19,6 +19,11 @@
 #include "MRPch/MRTBB.h"
 #include "MRViewController.h"
 
+// OCCT
+#include <gp_Pnt.hxx>
+#include <Bnd_Box.hxx>
+#include <V3d_View.hxx>
+
 #ifndef MRVIEWER_NO_VOXELS
 #include "MRVoxels/MRObjectVoxels.h"
 #endif
@@ -455,6 +460,11 @@ void Viewport::preciseFitToScreenBorder_( std::function<Box3f( bool zoomFOV, boo
     {
         sceneBox_ = unitedBox;
     }
+
+    auto& viewController = getViewerInstance().getViewController();
+    viewController.fitAll( sceneBox_, 1.0f - fitParams.factor );
+    // FIXME: WE Can use the paremeters in Graphic3d_Camera to fill the below parameters
+
     Vector3f sceneCenter = params_.orthographic ?
         getViewXf_().inverse()( unitedBox.center() ) : unitedBox.center();
     setRotationPivot_( sceneCenter );
@@ -797,7 +807,7 @@ void Viewport::setOrthographic( bool orthographic )
 
     params_.orthographic = orthographic;
     ViewController::getViewControllerInstance().setOrthographic(orthographic);
-    // preciseFitDataToScreenBorder( { 0.9f } );
+    preciseFitDataToScreenBorder( { 0.9f } );
     needRedraw_ = true;
 }
 
