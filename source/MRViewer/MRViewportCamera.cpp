@@ -1,3 +1,4 @@
+#include "MRFitData.h"
 #include "MRMesh/MRFeatureObject.h"
 #include "MRMesh/MRMeasurementObject.h"
 #include "MRViewport.h"
@@ -408,13 +409,19 @@ void Viewport::preciseFitBoxToScreenBorder( const FitBoxParams& fitParams )
 
 void Viewport::preciseFitDataToScreenBorder( const FitDataParams& fitParams )
 {
+    auto& ViewController = ViewController::getViewControllerInstance(); 
+
     std::vector<std::shared_ptr<VisualObject>> allObj;
+    // TODO: Support fit custom objects?
     if ( fitParams.mode == FitMode::CustomObjectsList )
         allObj = fitParams.objsList;
     else
     {
         const auto type = fitParams.mode == FitMode::SelectedObjects ? ObjectSelectivityType::Selected : ObjectSelectivityType::Any;
         allObj = getAllObjectsInTree<VisualObject>( &SceneRoot::get(), type );
+
+        // Let ViewController to Fit
+        ViewController.fitAll( fitParams.mode == FitMode::SelectedObjects );
     }
 
     preciseFitToScreenBorder_( [&] ( bool zoomFov, bool gobalBasis )
@@ -460,10 +467,6 @@ void Viewport::preciseFitToScreenBorder_( std::function<Box3f( bool zoomFOV, boo
     {
         sceneBox_ = unitedBox;
     }
-
-    auto& viewController = getViewerInstance().getViewController();
-    viewController.fitAll( sceneBox_, 1.0f - fitParams.factor );
-    // FIXME: WE Can use the paremeters in Graphic3d_Camera to fill the below parameters
 
     Vector3f sceneCenter = params_.orthographic ?
         getViewXf_().inverse()( unitedBox.center() ) : unitedBox.center();

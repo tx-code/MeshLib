@@ -77,7 +77,9 @@
 #include "MRViewer/MRGladGlfw.h"
 #include <GLFW/glfw3native.h> // For native access
 
-#define LOG_VIEW_CONTROLLER 1
+#ifndef NDEBUG
+  #define LOG_VIEW_CONTROLLER 1
+#endif
 
 //! Anonymous namespace for internal functions
 namespace
@@ -225,8 +227,7 @@ void ViewController::initialize()
 
   if (!internal_->glfwWindow)
   {
-    Message::DefaultMessenger()->Send("ViewController: GLFW window is null on construction.",
-                                      Message_Fail);
+    spdlog::error("ViewController: GLFW window is null on construction.");
     return;
   }
 
@@ -260,6 +261,12 @@ void ViewController::shutdown()
 #if LOG_VIEW_CONTROLLER
   spdlog::info("ViewController::shutting down");
 #endif
+
+  // Preventive cleaning fixes weird crash happening in MSVC Debug mode
+  internal_->context->RemoveFilters();
+  internal_->context->Deactivate();
+  internal_->context->EraseAll(false);
+  internal_->context->RemoveAll(false);
 
   // We need to release the FBO and the GL context before shutting down manually
   if (!internal_->offscreenFBO.IsNull() && !internal_->glContext.IsNull())
@@ -335,7 +342,9 @@ bool ViewController::addObject(const Handle(AIS_InteractiveObject)& object,
     }
     else
     {
-      spdlog::info("Binding AIS object to MR::Object {:p}.", (void*)mrObject);
+#if LOG_VIEW_CONTROLLER
+      spdlog::debug("Binding AIS object to MR::Object {:p}.", (void*)mrObject);
+#endif
       internal_->aisObjectToMrObjectMap.Bind(object, mrObject);
     }
 
@@ -471,14 +480,20 @@ void ViewController::showGlobalBasis(bool on, bool needRedraw)
   }
 }
 
-void ViewController::fitAll(const Box3f& box, float margin)
+void ViewController::fitAll(bool toFitSelected, float margin)
 {
-  if (getView())
+  if (auto theView = getView())
   {
-    getView()->FitAll(
-      Bnd_Box(gp_Pnt(box.min.x, box.min.y, box.min.z), gp_Pnt(box.max.x, box.max.y, box.max.z)),
-      std::clamp(margin, 0.0f, 1.0f),
-      false);
+    Bnd_Box aBndBox = toFitSelected ? internal_->context->BoundingBoxOfSelection(theView)
+                                    : theView->View()->MinMaxValues();
+    if (aBndBox.IsVoid() && toFitSelected)
+    {
+      aBndBox = theView->View()->MinMaxValues();
+    }
+    if (!aBndBox.IsVoid())
+    {
+      theView->FitAll(aBndBox, std::clamp(margin, 0.0f, 1.0f), false);
+    }
   }
 }
 
