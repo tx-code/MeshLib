@@ -356,6 +356,16 @@ bool ViewController::addObject(const Handle(AIS_InteractiveObject)& object,
   return true;
 }
 
+Expected<Handle(AIS_InteractiveObject)> ViewController::getInteractiveObject(
+  const Object* mrObject) const
+{
+  if (internal_->aisObjectToMrObjectMap.IsBound2(mrObject))
+  {
+    return internal_->aisObjectToMrObjectMap.Find2(mrObject);
+  }
+  return tl::make_unexpected("Object not found");
+}
+
 void ViewController::addAisObject(const Handle(AIS_InteractiveObject)& theAisObject)
 {
   if (theAisObject.IsNull())
@@ -497,6 +507,15 @@ void ViewController::fitAll(bool toFitSelected, float margin)
   }
 }
 
+void ViewController::clearSelection()
+{
+  if (const auto& ctx = internal_->context)
+  {
+    ctx->ClearDetected(false);
+    ctx->ClearSelected(false);
+  }
+}
+
 //---------------------------------------------------------
 // AIS_ViewController overrides
 
@@ -536,6 +555,8 @@ void ViewController::OnSelectionChanged(
       mrObject->resetRedrawFlag();
     }
   }
+
+  selectionChangeSignal();
 }
 
 //---------------------------------------------------------

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "MRViewer/exports.h"
+#include "MRMesh/MRExpected.h"
 #include "MRViewerEventsListener.h"
 #include "MRViewerFwd.h"
 #include <AIS_ViewController.hxx>
@@ -68,6 +68,9 @@ public:
                               const Object*                        mrObject,
                               bool                                 disableSelectionOnAdd = false);
 
+  MRVIEWER_API Expected<Handle(AIS_InteractiveObject)> getInteractiveObject(
+    const Object* mrObject) const;
+
   //! Add an ais object to the ais context.
   MRVIEWER_API void addAisObject(const Handle(AIS_InteractiveObject)& theAisObject);
 
@@ -86,6 +89,13 @@ public:
   // fit all objects in the scene or just selected objects
   void fitAll(bool toFitSelected, float margin = 0.01f);
   //@}
+
+  //! @name Selection routines
+public:
+  // Public Signals
+  Signal<void()> selectionChangeSignal; // trigger in OnSelectionChanged
+
+  MRVIEWER_API void clearSelection();
 
   //! @name override AIS_ViewController methods
 protected:
