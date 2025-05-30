@@ -1,6 +1,8 @@
 #pragma once
 
 #include "MRMesh/MRIRenderObject.h"
+#include "MRViewerFwd.h"
+#include "MRMesh/MRAffineXf3.h"
 
 #include <AIS_InteractiveObject.hxx>
 #include <Standard_Transient.hxx>
@@ -24,6 +26,11 @@ public:
     (void)params;
     (void)geomId;
   }
+
+  // Update the location of the Interactive object from the world xf of the visual object
+  MRVIEWER_API static void updateLocationFromWorldXf(const Handle(AIS_InteractiveObject)& obj,
+                                                     const AffineXf3f&                    worldXf,
+                                                     bool forceInvalidate = true);
 
 protected:
   // This is called when the object is updated from the visual object

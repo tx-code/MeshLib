@@ -25,16 +25,18 @@
 #include <MeshVS_NodalColorPrsBuilder.hxx>
 #include <AIS_InteractiveContext.hxx>
 #include <gp_Trsf.hxx>
+#include <vector>
 
 namespace MR
 {
 struct RenderInteractiveMeshObject::InternalData
 {
-  bool                      isMeshPrsValid{false};
-  Handle(MR_MeshDataSource) meshDataSource;
-  Handle(MeshVS_Mesh)       meshPrs;
-  uint32_t                  dirtyFlags{0};
-  Matrix4f                  prevXf{Matrix4f::identity()};
+  bool                                     isMeshPrsValid{false};
+  Handle(MR_MeshDataSource)                meshDataSource;
+  Handle(MeshVS_Mesh)                      meshPrs;
+  uint32_t                                 dirtyFlags{0};
+  Matrix4f                                 prevXf{Matrix4f::identity()};
+  std::vector<boost::signals2::connection> connections;
 
   // When some properties are changed, we need to redisplay the mesh.
   bool needRedisplay{false};
@@ -55,6 +57,12 @@ RenderInteractiveMeshObject::RenderInteractiveMeshObject(const VisualObject& vis
   objMesh_ = dynamic_cast<const ObjectMeshHolder*>(&visObj);
   assert(objMesh_);
   internalData_ = std::make_unique<InternalData>();
+
+  internalData_->connections.push_back(
+    const_cast<ObjectMeshHolder*>(objMesh_)->worldXfChangedSignal.connect([this]() {
+      if (internalData_->isMeshPrsValid)
+        updateLocationFromWorldXf(internalData_->meshPrs, objMesh_->worldXf(), true);
+    }));
 }
 
 RenderInteractiveMeshObject::~RenderInteractiveMeshObject() {}
@@ -74,27 +82,6 @@ bool RenderInteractiveMeshObject::render([[maybe_unused]] const ModelRenderParam
 
   // Create the AIS object if it doesn't exist
   createInteractiveObject_(params);
-
-  if (params.modelMatrix != internalData_->prevXf)
-  {
-    // The modelMatrix is the combined matrix of the object and its parent
-    internalData_->prevXf = params.modelMatrix;
-    gp_Trsf localTrans;
-    localTrans.SetValues(internalData_->prevXf.x.x,
-                         internalData_->prevXf.x.y,
-                         internalData_->prevXf.x.z,
-                         internalData_->prevXf.x.w,
-                         internalData_->prevXf.y.x,
-                         internalData_->prevXf.y.y,
-                         internalData_->prevXf.y.z,
-                         internalData_->prevXf.y.w,
-                         internalData_->prevXf.z.x,
-                         internalData_->prevXf.z.y,
-                         internalData_->prevXf.z.z,
-                         internalData_->prevXf.z.w);
-    context->SetLocation(internalData_->meshPrs, localTrans);
-    viewController.forceInvalidate();
-  }
 
   // Sync properties from the visual object
   syncPropertiesFromVisualObject_(params.viewportId);
@@ -238,6 +225,8 @@ void RenderInteractiveMeshObject::createInteractiveObject_(
   internalData_->dirtyFlags &= ~DIRTY_MESH;
   internalData_->meshDataSource = new MR_MeshDataSource(*objMesh_->mesh());
   internalData_->meshPrs->SetDataSource(internalData_->meshDataSource);
+
+  updateLocationFromWorldXf(internalData_->meshPrs, objMesh_->worldXf(), false);
 
   // Add Builders
   // We can get the builder by id.
