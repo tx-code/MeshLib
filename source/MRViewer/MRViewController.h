@@ -90,17 +90,27 @@ public:
   void fitAll(bool toFitSelected, float margin = 0.01f);
   //@}
 
-  //! @name Selection routines
-public:
   // Public Signals
   Signal<void()> selectionChangeSignal; // trigger in OnSelectionChanged
+  // Five signals correspond to the five AIS_DragAction enums
+  Signal<void()> objectStartDraggingSignal;
+  Signal<void()> objectConfirmedDraggingSignal;
+  Signal<void()> objectUpdateDraggingSignal;
+  Signal<void()> objectStopDraggingSignal;
+  Signal<void()> objectAbortDraggingSignal;
 
+  //! @name Selection routines
+public:
   MRVIEWER_API void clearSelection();
 
   //! @name override AIS_ViewController methods
 protected:
   void OnSelectionChanged(const Handle(AIS_InteractiveContext)& theCtx,
                           const Handle(V3d_View)&               theView) override;
+
+  void OnObjectDragged(const Handle(AIS_InteractiveContext)& theCtx,
+                       const Handle(V3d_View)&               theView,
+                       AIS_DragAction                        theAction) override;
 
 protected:
   //! Initialize OCCT Rendering System.

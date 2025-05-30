@@ -559,6 +559,34 @@ void ViewController::OnSelectionChanged(
   selectionChangeSignal();
 }
 
+void ViewController::OnObjectDragged(const Handle(AIS_InteractiveContext)& theCtx,
+                                     const Handle(V3d_View)&               theView,
+                                     AIS_DragAction                        theAction)
+{
+  // First, call the base class implementation
+  AIS_ViewController::OnObjectDragged(theCtx, theView, theAction);
+
+  switch (theAction)
+  {
+    case AIS_DragAction::AIS_DragAction_Start:
+      objectStartDraggingSignal();
+      break;
+    case AIS_DragAction::AIS_DragAction_Confirmed:
+      objectConfirmedDraggingSignal();
+      break;
+    case AIS_DragAction::AIS_DragAction_Update:
+      objectUpdateDraggingSignal();
+      break;
+    case AIS_DragAction::AIS_DragAction_Stop:
+      objectStopDraggingSignal();
+      break;
+    case AIS_DragAction::AIS_DragAction_Abort:
+    default:
+      objectAbortDraggingSignal();
+      break;
+  }
+}
+
 //---------------------------------------------------------
 // Init
 
