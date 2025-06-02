@@ -7,6 +7,7 @@
 // v. 2.0. If a copy of the MPL was not distributed with this file, You can
 // obtain one at http://mozilla.org/MPL/2.0/.
 
+#include "MRMesh/MRObject.h"
 #include "MRViewerPlugin.h"
 #include "MRViewerEventsListener.h"
 #include "MRStatePlugin.h"
@@ -40,6 +41,7 @@ enum class SelectedTypesMask
     ObjectMeshBit = 1 << 5,
     ObjectFeatureBit = 1 << 6,
     ObjectMeasurementBit = 1 << 7,
+    ObjectTopoShapeHolderBit = 1 << 8,
 };
 MR_MAKE_FLAG_OPERATORS( SelectedTypesMask )
 

@@ -82,6 +82,7 @@
 #include "MRMesh/MRAngleMeasurementObject.h"
 #include "MRMesh/MRDistanceMeasurementObject.h"
 #include "MRMesh/MRRadiusMeasurementObject.h"
+#include "MRMesh/MRObjectTopoShapeHolder.h"
 #include "imgui_internal.h"
 #include "MRRibbonConstants.h"
 #include "MRRibbonFontManager.h"
@@ -1585,6 +1586,27 @@ bool ImGuiMenu::drawAdvancedOptions( const std::vector<std::shared_ptr<VisualObj
         } );
     }
 
+    bool allIsObjTopoShape = 
+        selectedMask == SelectedTypesMask::ObjectTopoShapeHolderBit;
+
+    if ( allIsObjTopoShape )
+    {
+        make_width<ObjectTopoShapeHolder>( selectedObjs, "Point size", [&] ( const ObjectTopoShapeHolder* obj )
+        {
+            return obj->getPointSize();
+        }, [&] ( ObjectTopoShapeHolder* obj, float value )
+        {
+            obj->setPointSize( value );
+        } );
+        make_width<ObjectTopoShapeHolder>( selectedObjs, "Line width", [&] ( const ObjectTopoShapeHolder* obj )
+        {
+            return obj->getLineWidth();
+        }, [&] ( ObjectTopoShapeHolder* obj, float value )
+        {
+            obj->setLineWidth( value );
+        } );
+    }
+
     make_light_strength( selectedObjs, "Shininess", [&] ( const VisualObject* obj )
     {
         return obj->getShininess();
@@ -1722,6 +1744,7 @@ bool ImGuiMenu::drawDrawOptionsCheckboxes( const std::vector<std::shared_ptr<Vis
     bool allIsObjPoints = selectedMask == SelectedTypesMask::ObjectPointsHolderBit;
     bool allIsObjLabels = selectedMask == SelectedTypesMask::ObjectLabelBit;
     bool allIsFeatureObj = selectedMask == SelectedTypesMask::ObjectFeatureBit;
+    bool allIsObjTopoShape = selectedMask == SelectedTypesMask::ObjectTopoShapeHolderBit;
 
     const auto& viewportid = viewer->viewport().id;
 
@@ -1791,6 +1814,11 @@ bool ImGuiMenu::drawDrawOptionsCheckboxes( const std::vector<std::shared_ptr<Vis
     {
         someChanges |= make_visualize_checkbox( selectedVisualObjs, "Subfeatures", FeatureVisualizePropertyType::Subfeatures, viewportid );
     }
+    if(allIsObjTopoShape) {
+        someChanges |= make_visualize_checkbox(selectedVisualObjs, "Edges", TopoShapeVisualizePropertyType::Edges, viewportid);
+        someChanges |= make_visualize_checkbox(selectedVisualObjs, "Points", TopoShapeVisualizePropertyType::Points, viewportid);
+        someChanges |= make_visualize_checkbox(selectedVisualObjs, "Transparency", TopoShapeVisualizePropertyType::Transparency, viewportid);
+    }
     someChanges |= make_visualize_checkbox( selectedVisualObjs, "Invert Normals", VisualizeMaskType::InvertedNormals, viewportid );
     someChanges |= make_visualize_checkbox( selectedVisualObjs, "Name", VisualizeMaskType::Name, viewportid );
     if ( allIsFeatureObj )
@@ -1847,6 +1875,7 @@ bool ImGuiMenu::drawDrawOptionsColors( const std::vector<std::shared_ptr<VisualO
     const auto& selectedPointsObjs = SceneCache::getAllObjects<ObjectPointsHolder, ObjectSelectivityType::Selected>();
     const auto& selectedLabelObjs = SceneCache::getAllObjects<ObjectLabel, ObjectSelectivityType::Selected>();
     const auto& selectedFeatureObjs = SceneCache::getAllObjects<FeatureObject, ObjectSelectivityType::Selected>();
+    const auto& selectedTopoShapeObjs = SceneCache::getAllObjects<ObjectTopoShapeHolder, ObjectSelectivityType::Selected>();
     if ( selectedVisualObjs.empty() )
         return someChanges;
 
@@ -1995,6 +2024,24 @@ MR_SUPPRESS_WARNING_POP
         }, [&] ( FeatureObject* data, const Vector4f& color )
         {
             data->setDecorationsColor( Color( color ), false, selectedViewport_ );
+        } );
+    }
+
+    if ( !selectedTopoShapeObjs.empty()) 
+    {
+        make_color_selector<ObjectTopoShapeHolder>( selectedTopoShapeObjs, "Edges color", [&] ( const ObjectTopoShapeHolder* data )
+        {
+            return Vector4f( data->getEdgesColor( selectedViewport_ ) );
+        }, [&] ( ObjectTopoShapeHolder* data, const Vector4f& color )
+        {
+            data->setEdgesColor( Color( color ), selectedViewport_ );
+        } );
+        make_color_selector<ObjectTopoShapeHolder>( selectedTopoShapeObjs, "Points color", [&] ( const ObjectTopoShapeHolder* data )
+        {
+            return Vector4f( data->getPointsColor( selectedViewport_ ) );
+        }, [&] ( ObjectTopoShapeHolder* data, const Vector4f& color )
+        {
+            data->setPointsColor( Color( color ), selectedViewport_ );
         } );
     }
 
@@ -2954,6 +3001,10 @@ SelectedTypesMask ImGuiMenu::calcSelectedTypesMask( const std::vector<std::share
         else if ( obj->asType<MeasurementObject>() )
         {
             res |= SelectedTypesMask::ObjectMeasurementBit;
+        }
+        else if ( obj->asType<ObjectTopoShapeHolder>() )
+        {
+            res |= SelectedTypesMask::ObjectTopoShapeHolderBit;
         }
         else
         {

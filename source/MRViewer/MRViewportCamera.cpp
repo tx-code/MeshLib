@@ -1,5 +1,6 @@
 #include "MRFitData.h"
 #include "MRMesh/MRFeatureObject.h"
+#include "MRMesh/MRObjectTopoShapeHolder.h"
 #include "MRMesh/MRMeasurementObject.h"
 #include "MRViewport.h"
 #include "MRViewer.h"
@@ -640,6 +641,11 @@ Box3f Viewport::calcBox_( const std::vector<std::shared_ptr<VisualObject>>& objs
             }
             else if ( obj->asType<FeatureObject>() || obj->asType<MeasurementObject>() )
             {
+                // Do nothing? Not ideal.
+            }
+            else if ( obj->asType<ObjectTopoShapeHolder>() )
+            {
+                // TODO: Get points...
                 // Do nothing? Not ideal.
             }
             else
