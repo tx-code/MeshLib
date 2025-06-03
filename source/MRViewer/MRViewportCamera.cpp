@@ -645,8 +645,17 @@ Box3f Viewport::calcBox_( const std::vector<std::shared_ptr<VisualObject>>& objs
             }
             else if ( obj->asType<ObjectTopoShapeHolder>() )
             {
-                // TODO: Get points...
-                // Do nothing? Not ideal.
+                const auto& objTopoShape = obj->asType<ObjectTopoShapeHolder>();
+                const auto& mesh = objTopoShape->getMesh();
+                if ( mesh )
+                {
+                  lastValidVert = mesh->topology.lastValidVert();
+                  coords = &mesh->points;
+                  selectedVerts = &mesh->topology.getValidVerts();
+                }
+                else {
+                    spdlog::warn("ObjectTopoShapeHolder {} has no mesh", obj->name());
+                }
             }
             else
             {

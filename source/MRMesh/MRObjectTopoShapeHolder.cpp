@@ -66,6 +66,16 @@ void ObjectTopoShapeHolder::setPointSize(float size)
   needRedraw_ = true;
 }
 
+const std::shared_ptr<Mesh>& ObjectTopoShapeHolder::getMesh() const
+{
+  static const std::shared_ptr<Mesh> emptyMesh;
+  if (!mesh_)
+    extractMeshFromShape_();
+  if(!mesh_)
+    return emptyMesh;
+  return mesh_.value();
+}
+
 void ObjectTopoShapeHolder::setDefaultColors_()
 {
   setFrontColor(SceneColors::get(SceneColors::SelectedObjectMesh), true);

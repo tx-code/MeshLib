@@ -72,9 +72,17 @@ public:
     needRedraw_ = true;
   }
 
+  MRMESH_API const std::shared_ptr<Mesh>& getMesh() const;
+
 protected:
   ObjectTopoShapeHolder(const ObjectTopoShapeHolder& other) = default;
+
+  // Extracts a mesh from the shape and stores it in the mesh_ member.
+  // Implementation should be done in derived class.
+  virtual void extractMeshFromShape_() const {}
   
+  mutable std::optional<std::shared_ptr<Mesh>> mesh_;
+
   /// width on lines on screen in pixels
   float lineWidth_{1.0f};
   float pointSize_{5.f};
