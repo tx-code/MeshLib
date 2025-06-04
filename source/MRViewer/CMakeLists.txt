@@ -6,7 +6,6 @@ project(MRViewer CXX)
 
 option(MRVIEWER_NO_GTK "Disable GTK support (affects file dialog support on Linux and macOS)" OFF)
 option(MRVIEWER_NO_VOXELS "Disable voxels support" OFF)
-option(ENABLE_AIS_RENDERER "Enable AIS Renderer" ON)
 
 IF(NOT MESHLIB_BUILD_VOXELS)
   set(MRVIEWER_NO_VOXELS ON)
@@ -147,10 +146,6 @@ ELSEIF(WIN32 OR MESHLIB_USE_VCPKG)
     TKDEOBJ;
     TKDEGLTF;
     TKDEPLY)
-  IF(ENABLE_AIS_RENDERER)  
-    message(STATUS "Custom AIS Renderer is enabled")
-    target_compile_definitions(${PROJECT_NAME} PRIVATE USE_CUSTOM_AIS_RENDERER)
-  ENDIF()
 
   target_link_libraries(${PROJECT_NAME} PRIVATE
     MRMesh

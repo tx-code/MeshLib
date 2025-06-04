@@ -128,10 +128,6 @@ protected:
   //! Initialize off-screen rendering.
   void initOffscreenRendering();
 
-  //! Override the default render object for MeshLib's RenderXXXObject with our own
-  //! RenderInteractiveXXXObject.
-  void registerRenderInteractiveObjects();
-
   //! @name Listeners
 protected:
   void postResize_(int w, int h) override;

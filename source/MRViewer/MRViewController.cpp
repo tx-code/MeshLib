@@ -6,7 +6,6 @@
 #include "MRMesh/MRObjectsAccess.h"
 #include "MRMesh/MRSceneRoot.h"
 #include "MRMouseController.h"
-#include "MRRenderInteractiveMeshObject.h"
 #include "MRColorTheme.h"
 #include "MRRibbonMenu.h"
 #include "MRViewer.h"
@@ -598,7 +597,6 @@ void ViewController::initOCCTRenderingSystem()
   initAisContext();
   initOffscreenRendering();
   initVisualSettings();
-  registerRenderInteractiveObjects();
 }
 
 void ViewController::initV3dViewer()
@@ -836,29 +834,6 @@ void ViewController::initOffscreenRendering()
   {
     spdlog::error("Failed to create offscreen FBO.");
   }
-}
-
-void ViewController::registerRenderInteractiveObjects()
-{
-  // Conditionally overrides the renderer for ObjectMeshHolder if USE_CUSTOM_AIS_RENDERER is
-  // defined. This approach is chosen to avoid modifying the original MR_REGISTER_RENDER_OBJECT_IMPL
-  // macro calls elsewhere in the codebase.
-  //
-  // This relies on two assumptions:
-  // 1. RegisterRenderObjectConstructor allows overwriting a previously registered constructor
-  //    for the same type (typeid(ObjectMeshHolder)).
-  // 2. This function (initRenderInteractiveObjects) is called AFTER the static/default
-  //    registrations (via MR_REGISTER_RENDER_OBJECT_IMPL) have occurred but BEFORE any
-  //    ObjectMeshHolder instances are actually rendered or have their IRenderObject created.
-  //
-  // For VisualObject types not ObjectMeshHolder, or if USE_CUSTOM_AIS_RENDERER is not defined,
-  // the original rendering implementations registered via MR_REGISTER_RENDER_OBJECT_IMPL will be
-  // used.
-
-#ifdef USE_CUSTOM_AIS_RENDERER
-  RegisterRenderObjectConstructor(typeid(ObjectMeshHolder),
-                                  makeRenderObjectConstructor<RenderInteractiveMeshObject>());
-#endif
 }
 
 //---------------------------------------------------------
@@ -1194,10 +1169,6 @@ void ViewController::syncRenderObjectsWithScene(bool& needRedraw)
         // FIXME: We can only redraw the immediate layer
         needRedraw = true;
       }
-    }
-    else
-    {
-      spdlog::error("Cannot find AIS object for MR::Object {:p}.", (void*)obj.get());
     }
   }
 
