@@ -11,8 +11,7 @@ namespace MR
 {
 
 //! Base class for all custom AIS render objects.
-//! Inherit from Standard_Transient to be able to be the owner of the InteractiveObject.
-class RenderInteractiveObject : public virtual IRenderObject, public Standard_Transient
+class RenderInteractiveObject : public virtual IRenderObject
 {
 public:
   ~RenderInteractiveObject() override = default;
