@@ -1007,6 +1007,7 @@ void Viewer::launchShut()
     drawSignal = {};
     postDrawPreViewportSignal = {};
     postDrawSignal = {};
+    objectsLoadedSignal = {};
     dragDropSignal = {};
     postResizeSignal = {};
     postRescaleSignal = {};

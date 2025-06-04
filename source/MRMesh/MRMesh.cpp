@@ -100,26 +100,20 @@ Mesh Mesh::fromFaceSoup(
     res.points = std::move( vertexCoordinates );
     res.topology = MeshBuilder::fromFaceSoup( verts, faces, settings, subprogress( cb, 0.0f, 0.8f ) );
 
-    struct FaceFill
-    {
-        HoleFillPlan plan;
-        EdgeId e; // fill left of it
-    };
-    std::vector<FaceFill> faceFills;
+    std::vector<EdgeId> holeRepresentativeEdges;
     for ( auto f : res.topology.getValidFaces() )
     {
         auto e = res.topology.edgeWithLeft( f );
         if ( !res.topology.isLeftTri( e ) )
-            faceFills.push_back( { {}, e } );
+            holeRepresentativeEdges.push_back( e );
     }
 
-    ParallelFor( faceFills, [&]( size_t i )
-    {
-        faceFills[i].plan = getPlanarHoleFillPlan( res, faceFills[i].e );
-    }, subprogress( cb, 0.8f, 0.9f ) );
+    reportProgress( cb, 0.8f );
+    auto fillPlans = getPlanarHoleFillPlans( res, holeRepresentativeEdges );
+    reportProgress( cb, 0.9f );
 
-    for ( auto & x : faceFills )
-        executeHoleFillPlan( res, x.e, x.plan );
+    for ( size_t i = 0; i < holeRepresentativeEdges.size(); ++i )
+        executeHoleFillPlan( res, holeRepresentativeEdges[i], fillPlans[i] );
 
     reportProgress( cb, 1.0f );
 
@@ -376,52 +370,20 @@ void Mesh::addMeshPart( const MeshPart & from, const PartMapping & map )
 void Mesh::addMeshPart( const MeshPart & from, bool flipOrientation,
     const std::vector<EdgePath> & thisContours,
     const std::vector<EdgePath> & fromContours,
-    const PartMapping & map )
-{
-    MR_TIMER;
-    const auto & fromFaces = from.mesh.topology.getFaceIds( from.region );
-    addPartBy( from.mesh, begin( fromFaces ), end( fromFaces ), fromFaces.count(), flipOrientation, thisContours, fromContours, map );
-}
-
-void Mesh::addPartByFaceMap( const Mesh & from, const FaceMap & fromFaces, bool flipOrientation,
-    const std::vector<EdgePath> & thisContours,
-    const std::vector<EdgePath> & fromContours,
-    const PartMapping & map )
-{
-    MR_TIMER;
-    addPartBy( from, begin( fromFaces ), end( fromFaces ), fromFaces.size(), flipOrientation, thisContours, fromContours, map );
-}
-
-template<typename I>
-void Mesh::addPartBy( const Mesh & from, I fbegin, I fend, size_t fcount, bool flipOrientation,
-    const std::vector<EdgePath> & thisContours,
-    const std::vector<EdgePath> & fromContours,
     PartMapping map )
 {
     MR_TIMER;
-
     invalidateCaches();
 
     auto localVmap = VertMapOrHashMap::createHashMap();
     if ( !map.src2tgtVerts )
         map.src2tgtVerts = &localVmap;
-    topology.addPartBy( from.topology, fbegin, fend, fcount, flipOrientation, thisContours, fromContours, map );
+    topology.addPartByMask( from.mesh.topology, from.region, flipOrientation, thisContours, fromContours, map );
     VertId lastPointId = topology.lastValidVert();
     if ( points.size() < lastPointId + 1 )
         points.resize( lastPointId + 1 );
-    map.src2tgtVerts->forEach( [&]( VertId fromVert, VertId thisVert ) { points[thisVert] = from.points[fromVert]; } );
+    map.src2tgtVerts->forEach( [&]( VertId fromVert, VertId thisVert ) { points[thisVert] = from.mesh.points[fromVert]; } );
 }
-
-template MRMESH_API void Mesh::addPartBy( const Mesh & from,
-    SetBitIteratorT<FaceBitSet> fbegin, SetBitIteratorT<FaceBitSet> fend, size_t fcount, bool flipOrientation,
-    const std::vector<EdgePath> & thisContours,
-    const std::vector<EdgePath> & fromContours,
-    PartMapping map );
-template MRMESH_API void Mesh::addPartBy( const Mesh & from,
-    FaceMap::iterator fbegin, FaceMap::iterator fend, size_t fcount, bool flipOrientation,
-    const std::vector<EdgePath> & thisContours,
-    const std::vector<EdgePath> & fromContours,
-    PartMapping map );
 
 Mesh Mesh::cloneRegion( const FaceBitSet & region, bool flipOrientation, const PartMapping & map ) const
 {
