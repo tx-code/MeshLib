@@ -1165,9 +1165,15 @@ void ViewController::syncRenderObjectsWithScene(bool& needRedraw)
       bool isSelected          = obj->isSelected();
       if (isSelectedInContext != isSelected && isVisible)
       {
-        internal_->context->AddOrRemoveSelected(aisObj, false);
-        // FIXME: We can only redraw the immediate layer
-        needRedraw = true;
+        TColStd_ListOfInteger theList;
+        internal_->context->ActivatedModes(aisObj, theList);
+        if (theList.Contains(0)) 
+        {
+
+          internal_->context->AddOrRemoveSelected(aisObj, false);
+          // FIXME: We can only redraw the immediate layer
+          needRedraw = true;
+        }
       }
     }
   }
