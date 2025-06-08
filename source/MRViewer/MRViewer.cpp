@@ -718,7 +718,8 @@ int Viewer::launchInit_( const LaunchParams& params )
 #endif
     glfwWindowHint( GLFW_SAMPLES, getRequiredMSAA_( params.render3dSceneInTexture, false ) );
 #ifndef __EMSCRIPTEN__
-    glfwWindowHint( GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE );
+    // in CORE Profile, OCCT can't support line width other than 1.0
+    glfwWindowHint( GLFW_OPENGL_PROFILE, GLFW_OPENGL_COMPAT_PROFILE );
     glfwWindowHint( GLFW_FOCUS_ON_SHOW, GLFW_TRUE );
     glfwWindowHint( GLFW_TRANSPARENT_FRAMEBUFFER, params.enableTransparentBackground );
 #endif
