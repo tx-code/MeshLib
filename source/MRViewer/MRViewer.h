@@ -490,7 +490,6 @@ public:
 
     std::shared_ptr<ObjectMesh> basisAxes;
     std::unique_ptr<CornerControllerObject> basisViewController;
-    std::shared_ptr<ObjectMesh> basisViewController;
     std::shared_ptr<ObjectMesh> rotationSphere;
     std::shared_ptr<ObjectMesh> globalBasisAxes;
     // Stores clipping plane mesh
