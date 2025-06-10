@@ -22,6 +22,7 @@
 #include "MRMesh/MRPolyline.h"
 #include "MRPch/MRSuppressWarning.h"
 #include "MRPch/MRTBB.h"
+#include "MRViewportCornerController.h"
 #include "MRViewController.h"
 
 #ifndef MRVIEWER_NO_VOXELS
@@ -638,8 +639,7 @@ void Viewport::initBaseAxes()
 void Viewport::drawAxesAndViewController() const
 {
     bool basisVisible = getViewerInstance().basisAxes->isVisible( id );
-    bool controllerVisible = getViewerInstance().basisViewController->isVisible( id );
-    if ( basisVisible || controllerVisible )
+    if ( basisVisible || getViewerInstance().basisViewController )
     {
         // compute inverse in double precision to avoid NaN for very small scales
         auto fullInversedM = Matrix4f( ( Matrix4d( axesProjMat_ ) * Matrix4d( viewM_ ) ).inverse() );
@@ -661,24 +661,9 @@ void Viewport::drawAxesAndViewController() const
                     draw( *visualChild, basisAxesXf, axesProjMat_, DepthFunction::Always );
             }
         }
-        if ( controllerVisible )
+        if ( getViewerInstance().basisViewController )
         {
-            getViewerInstance().basisViewController->setXf( basisAxesXf, id );
-            draw( *getViewerInstance().basisViewController, basisAxesXf, axesProjMat_, DepthFunction::Always );
-            for ( const auto& child : getViewerInstance().basisViewController->children() )
-            {
-                if ( auto visualChild = child->asType<VisualObject>() )
-                {
-                    visualChild->setXf( invRot, id );
-                    draw( *visualChild, basisAxesXf * invRot, axesProjMat_, DepthFunction::Always );
-                }
-            }
-            draw( *getViewerInstance().basisViewController, basisAxesXf, axesProjMat_ );
-            for ( const auto& child : getViewerInstance().basisViewController->children() )
-            {
-                if ( auto visualChild = child->asType<VisualObject>() )
-                    draw( *visualChild, basisAxesXf * invRot, axesProjMat_ );
-            }
+            getViewerInstance().basisViewController->draw( *this, basisAxesXf, invRot );
         }
         if ( basisVisible )
         {
