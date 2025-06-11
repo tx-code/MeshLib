@@ -2,6 +2,7 @@
 
 #include "exports.h"
 #include "MRUnits.h"
+#include <functional>
 
 // This abstracts away the UI measurement unit configuration. Internally this uses `setDefaultUnitParams()`.
 
@@ -34,6 +35,18 @@ MRVIEWER_API void setUiLengthUnit( std::optional<LengthUnit> unit, bool setPrefe
 
 [[nodiscard]] MRVIEWER_API DegreesMode getDegreesMode();
 MRVIEWER_API void setDegreesMode( DegreesMode mode, bool setPreferredPrecision );
+
+// Unit change notification (only for types that need OCCT sync)
+enum class UnitChangeType
+{
+    Length,         // Length unit changed
+    Angle,          // Angle/degrees mode changed
+};
+
+// Callback mechanism for unit changes
+using UnitChangeCallback = std::function<void(UnitChangeType changeType)>;
+MRVIEWER_API void setUnitChangeCallback( UnitChangeCallback callback );
+MRVIEWER_API void clearUnitChangeCallback();
 
 // Precision:
 

@@ -5,6 +5,15 @@
 namespace MR::UnitSettings
 {
 
+// Callback for unit changes
+static UnitChangeCallback unitChangeCallback;
+
+static void notifyUnitChange( UnitChangeType changeType )
+{
+    if ( unitChangeCallback )
+        unitChangeCallback( changeType );
+}
+
 static void forAllLengthUnits( auto&& func )
 {
     // All length-related unit types must be listed here.
@@ -148,6 +157,9 @@ void setUiLengthUnit( std::optional<LengthUnit> unit, bool setPreferredLeadingZe
         params.targetUnit = unit ? std::optional( getDependentUnit.template operator()<E>( *unit ) ) : std::nullopt;
         setDefaultUnitParams( params );
     } );
+    
+    // Notify unit change
+    notifyUnitChange( UnitChangeType::Length );
 }
 
 DegreesMode getDegreesMode()
@@ -175,6 +187,9 @@ void setDegreesMode( DegreesMode mode, bool setPreferredPrecision )
 
         setDefaultUnitParams( params );
     } );
+    
+    // Notify unit change
+    notifyUnitChange( UnitChangeType::Angle );
 }
 
 int getUiLengthPrecision()
@@ -221,6 +236,16 @@ void setUiRatioPrecision( int precision )
         params.precision = precision;
         setDefaultUnitParams( params );
     } );
+}
+
+void setUnitChangeCallback( UnitChangeCallback callback )
+{
+    unitChangeCallback = std::move( callback );
+}
+
+void clearUnitChangeCallback()
+{
+    unitChangeCallback = nullptr;
 }
 
 }
