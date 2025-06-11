@@ -320,7 +320,7 @@ bool ViewController::addObject(const Handle(AIS_InteractiveObject)& object,
     {
       // Logic for when selection is disabled on add
       const bool onEntry_AutoActivateSelection = internal_->context->GetAutoActivateSelection();
-      const int  defaultDisplayMode            = internal_->context->DisplayMode();
+      const int  defaultDisplayMode            = object->DefaultDisplayMode();
       internal_->context->SetAutoActivateSelection(false);
       internal_->context->Display(
         object,
@@ -347,9 +347,13 @@ bool ViewController::addObject(const Handle(AIS_InteractiveObject)& object,
       internal_->aisObjectToMrObjectMap.Bind(object, mrObject);
     }
 
-    // TODO: we can at the end of each frame to Fit and Redraw the View
-    internal_->view->ZFitAll();
-    internal_->view->FitAll(0.01, false);
+    // For non-ancillary objects, we need to fit and redraw the view
+    if (!mrObject->isAncillary())
+    {
+      // TODO: we can at the end of each frame to Fit and Redraw the View
+      internal_->view->ZFitAll();
+      internal_->view->FitAll(0.01, false);
+    }
     internal_->view->Invalidate();
   }
   return true;
@@ -1167,7 +1171,7 @@ void ViewController::syncRenderObjectsWithScene(bool& needRedraw)
       {
         TColStd_ListOfInteger theList;
         internal_->context->ActivatedModes(aisObj, theList);
-        if (theList.Contains(0)) 
+        if (theList.Contains(0))
         {
 
           internal_->context->AddOrRemoveSelected(aisObj, false);

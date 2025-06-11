@@ -659,6 +659,10 @@ Box3f Viewport::calcBox_( const std::vector<std::shared_ptr<VisualObject>>& objs
             }
             else
             {
+                // We don't need to calculate the box for frame objects?
+                if(obj->getClassName() == "ObjectFrame") {
+                    continue;
+                }
                 assert( false );
                 continue;
             }
