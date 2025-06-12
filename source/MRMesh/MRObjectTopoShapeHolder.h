@@ -3,6 +3,7 @@
 #include "MRMeshFwd.h"
 #include "MRVisualObject.h"
 #include "MRXfBasedCache.h"
+#include <vector>
 
 namespace MR
 {
@@ -25,6 +26,18 @@ struct IsVisualizeMaskEnum<TopoShapeVisualizePropertyType> : std::true_type{};
 // but currently only manages visualization-related properties.
 // The actual storage and interfaces for TopoDS_Shape and related data
 // will be provided in the ObjectTopoShape concrete implementation.
+
+// ----------------------------------------------------------------------------
+// Mapping between mesh triangles and B-Rep faces.
+// We reuse MRMesh 中通用的 `std::vector<FaceBitSet>`（各 region 即一个 B-Rep 面），
+// 这样无需再在 MRMesh 层重复定义 Topo*Id 等类型。
+// ----------------------------------------------------------------------------
+
+struct TriTopoFaceBiMap
+{
+    // index == TopoFaceId (implicit); FaceBitSet contains triangles belonging to the face
+    std::vector<FaceBitSet> faceRegions;
+};
 
 class MRMESH_CLASS ObjectTopoShapeHolder : public VisualObject
 {
@@ -72,7 +85,8 @@ public:
     needRedraw_ = true;
   }
 
-  MRMESH_API const std::shared_ptr<Mesh>& getMesh() const;
+  /// 获取网格；若传入 map 指针，则返回三角形-TopoFace 双向映射
+  MRMESH_API const std::shared_ptr<Mesh>& getMesh( TriTopoFaceBiMap* map = nullptr ) const;
 
 protected:
   ObjectTopoShapeHolder(const ObjectTopoShapeHolder& other) = default;
@@ -82,6 +96,7 @@ protected:
   virtual void extractMeshFromShape_() const {}
   
   mutable std::optional<std::shared_ptr<Mesh>> mesh_;
+  mutable std::optional<TriTopoFaceBiMap>      triFaceMap_;
 
   /// width on lines on screen in pixels
   float lineWidth_{1.0f};

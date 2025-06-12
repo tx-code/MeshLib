@@ -66,13 +66,21 @@ void ObjectTopoShapeHolder::setPointSize(float size)
   needRedraw_ = true;
 }
 
-const std::shared_ptr<Mesh>& ObjectTopoShapeHolder::getMesh() const
+const std::shared_ptr<Mesh>& ObjectTopoShapeHolder::getMesh(TriTopoFaceBiMap* map) const
 {
   static const std::shared_ptr<Mesh> emptyMesh;
+
   if (!mesh_)
     extractMeshFromShape_();
-  if(!mesh_)
+
+  // if mesh extraction failed
+  if (!mesh_)
     return emptyMesh;
+
+  // copy mapping if requested and available
+  if (map && triFaceMap_)
+    *map = *triFaceMap_;
+
   return mesh_.value();
 }
 
