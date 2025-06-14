@@ -699,7 +699,7 @@ void ViewController::initAisContext()
 
   context_ = new AIS_InteractiveContext(internal_->viewer);
   context_->SetAutoActivateSelection(true);
-  context_->SetToHilightSelected(false);
+  context_->SetToHilightSelected(true);
   context_->SetPickingStrategy(SelectMgr_PickingStrategy_OnlyTopmost);
   context_->SetDisplayMode(AIS_Shaded, false);
   context_->EnableDrawHiddenLine();
