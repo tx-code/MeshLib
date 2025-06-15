@@ -316,15 +316,22 @@ bool ViewController::addObject(const Handle(AIS_InteractiveObject)& object,
       return false;
     }
 
-    if (disableSelectionOnAdd)
+    // Should we disable selection on add for ancillary objects?
+    if (disableSelectionOnAdd || mrObject->isAncillary())
     {
       // Logic for when selection is disabled on add
       const bool onEntry_AutoActivateSelection = internal_->context->GetAutoActivateSelection();
-      const int  defaultDisplayMode            = object->DefaultDisplayMode();
+      // Get a valid display mode
+      int currentDisplayMode = object->DisplayMode();
+      if (!object->AcceptDisplayMode(currentDisplayMode))
+      {
+        // This fallback is for Trihedron, which use DatumDisplayMode instead of DisplayMode
+        currentDisplayMode = object->DefaultDisplayMode();
+      }
       internal_->context->SetAutoActivateSelection(false);
       internal_->context->Display(
         object,
-        defaultDisplayMode,
+        currentDisplayMode,
         -1,
         false); // -1 for selection mode often means no specific selection activation
       internal_->context->SetAutoActivateSelection(onEntry_AutoActivateSelection);
