@@ -105,6 +105,7 @@ void ObjectGcode::setIdleColor( const Color& color )
 
 bool ObjectGcode::select( bool isSelected )
 {
+#if 0
     if ( !ObjectLinesHolder::select( isSelected ) )
         return false;
     float width = getLineWidth();
@@ -118,6 +119,10 @@ bool ObjectGcode::select( bool isSelected )
     }
     setLineWidth( width );
     return true;
+#else
+    // don't change line width automatically...
+    return ObjectLinesHolder::select( isSelected );
+#endif
 }
 
 void ObjectGcode::setFrontColor( const Color& color, bool selected, ViewportId viewportId /*= {} */ )
