@@ -12,6 +12,7 @@
 #include "MRViewer/MRViewer.h"
 #include "MRViewport.h"
 #include "MRMesh/MRObjectMesh.h"
+#include "MRMesh/MRTimer.h"
 
 // OCCT
 #include <AIS_Trihedron.hxx>
@@ -1136,6 +1137,8 @@ Graphic3d_Vec2i ViewController::adjustMousePosition(int                      the
 // @note: Should be called after the Object has been added to the scene (in draw()).
 void ViewController::syncRenderObjectsWithScene(bool& needRedraw)
 {
+  MR_TIMER;
+
   // This method to sync the render objects although is not very efficient, but we don't need to
   // change the MR::Object.
   if (internal_->context.IsNull() || internal_->aisObjectToMrObjectMap.IsEmpty())
