@@ -62,6 +62,8 @@
 #include "MRSceneCache.h"
 #include "MRViewerTitle.h"
 #include "MRViewportCornerController.h"
+#include "MRWebRequest.h"
+#include "MRMesh/MRCube.h"
 
 #ifndef __EMSCRIPTEN__
 #include <boost/exception/diagnostic_information.hpp>
@@ -129,7 +131,6 @@ EMSCRIPTEN_KEEPALIVE void emsForceSettingsSave()
 
 }
 #endif
-#include "MRMesh/MRCube.h"
 
 static void glfw_mouse_press( GLFWwindow* /*window*/, int button, int action, int modifier )
 {
@@ -626,7 +627,9 @@ int Viewer::launch( const LaunchParams& params )
     }
     if ( params.close )
         launchShut();
+
     CommandLoop::removeCommands( true );
+
     return EXIT_SUCCESS;
 }
 
@@ -948,6 +951,18 @@ void Viewer::launchShut()
         settingsMng_->saveSettings( *this );
     }
 
+    {
+        spdlog::info( "Wait and process unfinished web requests." );
+        /// wait for all remaining requests
+        for ( int i = 0; i < 3; ++i ) // maximum 3 iterations
+        {
+            WebRequest::waitRemainingAsync();
+            if ( CommandLoop::empty() )
+                break;
+            CommandLoop::processCommands();
+        }
+    }
+
     for ( auto& viewport : viewport_list )
         viewport.shut();
     shutdownPlugins_();
@@ -984,6 +999,12 @@ void Viewer::launchShut()
 
     /// removes references on all cached objects before shared libraries with plugins are unloaded
     SceneCache::invalidateAll();
+
+    {
+        // some requests might be sent during shutdown, just wait for them but don't process
+        spdlog::info( "Wait and DON'T process unfinished web requests." );
+        WebRequest::waitRemainingAsync();
+    }
 
     /// disconnect all slots before shared libraries with plugins are unloaded
     mouseDownSignal = {};

@@ -59,7 +59,7 @@ public:
     /// reset widget state
     MRVIEWER_API void reset();
     /// lock the mesh region (vertices in this region cannot be moved, added or deleted)
-    /// @note boundary edges can be splitted to improve quality of the patch
+    /// @note boundary edges can be split to improve quality of the patch
     MRVIEWER_API void setFixedRegion( const FaceBitSet& region );
 
     /// set widget settings (mesh change settings)
@@ -104,6 +104,10 @@ protected:
     MRVIEWER_API bool onMouseMove_( int mouse_x, int mouse_y ) override;
     /// need to visualize bad region (draw grey circle)
     MRVIEWER_API void postDraw_() override;
+
+    /// customize modifiers check on mouse down
+    /// @return true if widget consumes event, false if modifiers do not satisfy widget requirements
+    MRVIEWER_API virtual bool checkModifiers_( int modifiers ) const { return modifiers == 0; }
 
     /// called to change mesh with history record
     /// newFaces seems to be useful
