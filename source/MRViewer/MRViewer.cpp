@@ -15,6 +15,7 @@
 #include "MRRibbonMenu.h"
 #include "MRGetSystemInfoJson.h"
 #include "MRSpaceMouseHandler.h"
+#include "MRDragDropHandler.h"
 #include "MRSpaceMouseHandlerHidapi.h"
 #include "MRSpaceMouseHandler3dxMacDriver.h"
 #include "MRRenderGLHelpers.h"
@@ -838,6 +839,8 @@ int Viewer::launchInit_( const LaunchParams& params )
         touchpadController_->connect( this );
         touchpadController_->initialize( window );
 
+        dragDropAdvancedHandler_ = getDragDropHandler( window );
+
         if (!viewController_)
             viewController_ = std::make_unique<ViewController>();
         viewController_->connect( this );
@@ -987,6 +990,8 @@ void Viewer::launchShut()
 
     if ( touchpadController_ )
         touchpadController_->reset();
+
+    dragDropAdvancedHandler_.reset();
 
     if ( viewController_ )
         viewController_->shutdown();
@@ -1275,7 +1280,7 @@ bool Viewer::loadFiles( const std::vector<std::filesystem::path>& filesList, con
             if ( auto cn = commonClassName( result.scene->children() ) )
                 undoName += " as " + *cn;
 
-            if ( options.forceReplaceScene || ( result.loadedFiles.size() == 1 && ( !result.isSceneConstructed || wasEmptyScene ) ) )
+            if ( options.forceReplaceScene || wasEmptyScene )
             {
                 {
                     // the scene is taken as is from a single file, replace the current scene with it
