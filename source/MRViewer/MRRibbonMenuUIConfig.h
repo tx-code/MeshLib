@@ -19,6 +19,7 @@ struct RibbonMenuUIConfig
     bool drawToolbar{ true }; ///< if false - toolbar will be hidden (ignored if top panel is hidden)
     bool drawViewportTags{ true }; ///< if false - window with viewport label and id will be hidden
     bool drawNotifications{ true }; ///< if false - no notifications are drawn on screen
+    bool drawCustomViewerWindow{ true }; ///< if false - custom viewer window will be hidden (IMOS)
 
     bool operator==( const RibbonMenuUIConfig& ) const = default;
 };
