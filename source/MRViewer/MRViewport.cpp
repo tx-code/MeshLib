@@ -4,6 +4,7 @@
 #include "MRGLMacro.h"
 #include "MRGLStaticHolder.h"
 #include "MRMouseController.h"
+#include "MRViewportCornerController.h"
 #include <MRMesh/MRMesh.h>
 #include <MRMesh/MRArrow.h>
 #include <MRMesh/MRMakeSphereMesh.h>
@@ -20,6 +21,7 @@
 #include "MRMesh/MRSceneRoot.h"
 #include "MRMesh/MRPointCloud.h"
 #include "MRMesh/MRPolyline.h"
+#include "MRMesh/MRMeshNormals.h"
 #include "MRPch/MRSuppressWarning.h"
 #include "MRPch/MRTBB.h"
 #include "MRViewportCornerController.h"
@@ -427,6 +429,31 @@ std::unordered_map<std::shared_ptr<MR::ObjectMesh>, MR::FaceBitSet> Viewport::fi
         fbs.set( FaceId( int( pId ) ) );
     }
     return resMap;
+}
+
+FaceBitSet Viewport::findCameraLookingFaces( const Mesh& mesh, const AffineXf3f& meshToWorld ) const
+{
+    const auto normals = computePerFaceNormals( mesh );
+    FaceBitSet faces;
+    faces.resize( normals.size() );
+
+    const auto cameraPos =  getCameraPoint();
+
+    BitSetParallelFor( mesh.topology.getValidFaces(), [&]( FaceId f )
+    {
+        auto transformedNormal = meshToWorld.A * normals[f];
+        if ( params_.orthographic )
+        {
+            if ( ( dot( transformedNormal, cameraPos ) > 0.0f ) )
+                faces.set( f );
+        }
+        else
+        {
+            if ( dot( transformedNormal, cameraPos - mesh.triCenter( f ) ) > 0.0f )
+                faces.set( f );
+        }
+    } );
+    return faces;
 }
 
 ConstObjAndPick Viewport::const_pick_render_object() const
